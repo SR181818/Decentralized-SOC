@@ -1,18 +1,18 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
+import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { useWallet } from "@/hooks/useWallet";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { FileText, Upload, Hash, Shield } from "lucide-react";
-import CryptoJS from "crypto-js";
+import { useCurrentAccount, useIotaClient, useSignTransaction } from "@iota/dapp-kit";
+import { createContractService, CONTRACT_PACKAGE_ID } from "@/lib/contract";
+import { Upload, Hash, Shield } from "lucide-react";
 
 interface TicketFormProps {
-  onSubmit: (ticket: any) => void;
+  onSubmit: (ticketData: any) => void;
   onCancel: () => void;
 }
 
@@ -21,53 +21,53 @@ const TicketForm = ({ onSubmit, onCancel }: TicketFormProps) => {
     title: "",
     category: "",
     description: "",
-    severity: "",
-    file: null as File | null,
-    fileHash: "",
-    stakeAmount: "100" // Default stake amount
+    evidenceFile: null as File | null,
+    stakeAmount: "10"
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [evidenceHash, setEvidenceHash] = useState("");
+  
   const { toast } = useToast();
-  const { contractService, executeTransaction, isContractVerified, address, userId } = useWallet();
+  const currentAccount = useCurrentAccount();
+  const client = useIotaClient();
+  const { mutate: signTransaction } = useSignTransaction();
 
   const categories = [
     "Malware Detection",
     "Phishing Attack",
     "Data Breach",
-    "Network Intrusion",
-    "Suspicious Activity",
-    "Vulnerability Assessment",
-    "Incident Response",
+    "Network Intrusion", 
+    "Ransomware",
+    "Social Engineering",
+    "Insider Threat",
+    "DDoS Attack",
     "Other"
   ];
 
-  const severities = [
-    { value: "low", label: "Low", color: "text-success" },
-    { value: "medium", label: "Medium", color: "text-warning" },
-    { value: "high", label: "High", color: "text-destructive" },
-    { value: "critical", label: "Critical", color: "text-destructive font-bold" }
-  ];
+  // Hash file content for evidence
+  const hashFile = async (file: File): Promise<string> => {
+    const arrayBuffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (file) {
+      setFormData(prev => ({ ...prev, evidenceFile: file }));
       try {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const content = e.target?.result as string;
-          const hash = CryptoJS.SHA256(content).toString();
-          setFormData(prev => ({
-            ...prev,
-            file: file,
-            fileHash: hash
-          }));
-        };
-        reader.readAsText(file);
+        const hash = await hashFile(file);
+        setEvidenceHash(hash);
+        toast({
+          title: "Evidence Processed",
+          description: "File has been hashed for blockchain storage"
+        });
       } catch (error) {
         toast({
-          title: "File Upload Error",
-          description: "Failed to process file",
-          variant: "destructive",
+          title: "Error",
+          description: "Failed to process evidence file",
+          variant: "destructive"
         });
       }
     }
@@ -75,20 +75,21 @@ const TicketForm = ({ onSubmit, onCancel }: TicketFormProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!address) {
+    
+    if (!currentAccount) {
       toast({
-        title: "Wallet Not Connected",
+        title: "Error",
         description: "Please connect your wallet first",
-        variant: "destructive",
+        variant: "destructive"
       });
       return;
     }
 
-    if (!isContractVerified || !contractService) {
+    if (!formData.evidenceFile || !evidenceHash) {
       toast({
-        title: "Contract Unavailable",
-        description: "Smart contract is not accessible. Please check your network connection.",
-        variant: "destructive",
+        title: "Error", 
+        description: "Please upload evidence file",
+        variant: "destructive"
       });
       return;
     }
@@ -96,92 +97,109 @@ const TicketForm = ({ onSubmit, onCancel }: TicketFormProps) => {
     setIsSubmitting(true);
 
     try {
-      // Create evidence hash from form data
-      const evidenceData = {
-        title: formData.title,
-        category: formData.category,
-        description: formData.description,
-        severity: formData.severity,
-        fileHash: formData.fileHash,
-        timestamp: new Date().toISOString()
-      };
-      const evidenceHash = CryptoJS.SHA256(JSON.stringify(evidenceData)).toString();
+      const contractService = createContractService(client);
       
+      // First create stake token
       const stakeAmount = parseInt(formData.stakeAmount);
+      const stakeTransaction = await contractService.createStake(
+        stakeAmount, 
+        currentAccount.address
+      );
 
-      // Create ticket in database first
-      const ticketId = "TKT-" + Date.now();
-      const ticketData = {
-        ticketId,
-        clientId: userId!,
-        title: formData.title,
-        category: formData.category,
-        description: formData.description,
-        severity: formData.severity,
-        evidenceHash,
-        fileName: formData.file?.name,
-        stakeAmount,
-        status: "open"
-      };
+      // Sign and execute stake transaction
+      signTransaction(
+        {
+          transaction: stakeTransaction,
+          chain: "iota:testnet"
+        },
+        {
+          onSuccess: async (stakeResult) => {
+            toast({
+              title: "Stake Created",
+              description: `Staked ${stakeAmount} IOTA tokens`
+            });
 
-      // Save ticket to database
-      const savedTicket = await apiRequest('/api/tickets', {
-        method: 'POST',
-        body: JSON.stringify(ticketData),
-      });
+            // Now create the ticket
+            // Note: In production, you'd get the actual store ID and stake token ID from the blockchain
+            const mockStoreId = "0x1"; // Replace with actual store ID
+            const mockStakeTokenId = stakeResult.digest; // Use transaction digest as mock ID
+            
+            const ticketTransaction = await contractService.createTicket(
+              mockStoreId,
+              mockStakeTokenId,
+              evidenceHash,
+              formData.title,
+              formData.description,
+              formData.category,
+              stakeAmount,
+              currentAccount.address
+            );
 
-      // Execute blockchain transaction
-      try {
-        await executeTransaction(
-          () => contractService.createStake(stakeAmount, address),
-          `Ticket ${ticketId} submitted with ${stakeAmount} IOTA stake`
-        );
+            // Sign and execute ticket transaction
+            signTransaction(
+              {
+                transaction: ticketTransaction,
+                chain: "iota:testnet"
+              },
+              {
+                onSuccess: (ticketResult) => {
+                  toast({
+                    title: "Ticket Submitted Successfully",
+                    description: `Transaction: ${ticketResult.digest}`
+                  });
 
-        // Update ticket with blockchain transaction hash
-        await apiRequest(`/api/tickets/${savedTicket.id}`, {
-          method: 'PUT',
-          body: JSON.stringify({
-            iotaTransactionHash: "0x" + evidenceHash.substring(0, 32),
-            status: "pending_blockchain"
-          }),
-        });
+                  onSubmit({
+                    ...formData,
+                    evidenceHash,
+                    stakeAmount,
+                    transactionHash: ticketResult.digest,
+                    walletAddress: currentAccount.address
+                  });
+                },
+                onError: (error) => {
+                  console.error("Ticket creation failed:", error);
+                  toast({
+                    title: "Ticket Creation Failed",
+                    description: error.message || "Failed to create ticket",
+                    variant: "destructive"
+                  });
+                  setIsSubmitting(false);
+                }
+              }
+            );
+          },
+          onError: (error) => {
+            console.error("Stake creation failed:", error);
+            toast({
+              title: "Stake Creation Failed", 
+              description: error.message || "Failed to create stake",
+              variant: "destructive"
+            });
+            setIsSubmitting(false);
+          }
+        }
+      );
 
-        // Invalidate queries to refresh data
-        queryClient.invalidateQueries({ queryKey: ['/api/tickets'] });
-        queryClient.invalidateQueries({ queryKey: [`/api/tickets/user/${userId}`] });
-
-        onSubmit(savedTicket);
-      } catch (transactionError) {
-        // Update ticket status to indicate blockchain failure
-        await apiRequest(`/api/tickets/${savedTicket.id}`, {
-          method: 'PUT',
-          body: JSON.stringify({
-            status: "blockchain_failed"
-          }),
-        });
-        console.error("Transaction failed:", transactionError);
-      }
-    } catch (error) {
-      console.error("Ticket submission error:", error);
+    } catch (error: any) {
+      console.error("Transaction preparation failed:", error);
       toast({
-        title: "Submission Failed",
-        description: "Failed to prepare ticket submission",
-        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to prepare transaction",
+        variant: "destructive"
       });
-    } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <Card className="security-card max-w-2xl mx-auto">
+    <Card className="max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <FileText className="h-5 w-5" />
-          Submit Security Incident
+          <Shield className="h-5 w-5" />
+          Submit Security Incident Report
         </CardTitle>
         <CardDescription>
-          Report a cybersecurity incident with cryptographic evidence anchoring
+          Report a cybersecurity incident with evidence for analysis
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -197,38 +215,24 @@ const TicketForm = ({ onSubmit, onCancel }: TicketFormProps) => {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
-              <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="severity">Severity</Label>
-              <Select value={formData.severity} onValueChange={(value) => setFormData(prev => ({ ...prev, severity: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select severity" />
-                </SelectTrigger>
-                <SelectContent>
-                  {severities.map((severity) => (
-                    <SelectItem key={severity.value} value={severity.value}>
-                      <span className={severity.color}>{severity.label}</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="category">Category</Label>
+            <Select 
+              value={formData.category} 
+              onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+              required
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select incident category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
@@ -237,70 +241,72 @@ const TicketForm = ({ onSubmit, onCancel }: TicketFormProps) => {
               id="description"
               value={formData.description}
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Provide detailed information about the incident, including timeline, impact, and any preliminary findings..."
-              rows={6}
+              placeholder="Provide detailed information about the incident, including timeline, affected systems, and potential impact"
+              rows={4}
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="file">Evidence File (Optional)</Label>
-            <div className="flex items-center gap-4">
-              <Input
-                id="file"
-                type="file"
-                onChange={handleFileUpload}
-                accept=".txt,.pdf,.doc,.docx,.png,.jpg,.jpeg"
-                className="flex-1"
-              />
-              <Button type="button" variant="outline" size="sm">
-                <Upload className="h-4 w-4 mr-2" />
-                Upload
-              </Button>
-            </div>
-            {formData.fileHash && (
-              <div className="flex items-center gap-2 p-3 bg-muted/20 rounded-lg">
-                <Hash className="h-4 w-4 text-primary" />
-                <div>
-                  <p className="text-sm font-medium">File Hash Generated</p>
-                  <p className="text-xs text-muted-foreground font-mono">{formData.fileHash.substring(0, 32)}...</p>
+            <Label htmlFor="evidence">Evidence File</Label>
+            <div className="border-2 border-dashed border-muted rounded-lg p-4">
+              <div className="flex items-center gap-4">
+                <Upload className="h-8 w-8 text-muted-foreground" />
+                <div className="flex-1">
+                  <Input
+                    id="evidence"
+                    type="file"
+                    onChange={handleFileChange}
+                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.txt,.zip"
+                    required
+                  />
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Upload logs, screenshots, or other evidence (Max 10MB)
+                  </p>
                 </div>
               </div>
-            )}
+              {evidenceHash && (
+                <div className="mt-4 p-3 bg-muted rounded-md">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Hash className="h-4 w-4" />
+                    <span className="font-medium">Evidence Hash:</span>
+                  </div>
+                  <p className="text-xs font-mono mt-1 break-all">{evidenceHash}</p>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="stakeAmount">Stake Amount (IOTA)</Label>
+            <Label htmlFor="stake">Stake Amount (IOTA)</Label>
             <Input
-              id="stakeAmount"
+              id="stake"
               type="number"
               value={formData.stakeAmount}
               onChange={(e) => setFormData(prev => ({ ...prev, stakeAmount: e.target.value }))}
-              placeholder="Enter stake amount"
               min="1"
               required
             />
-            <p className="text-xs text-muted-foreground">
-              Required stake to submit ticket (minimum 1 IOTA)
+            <p className="text-sm text-muted-foreground">
+              Minimum stake required to submit a ticket. Higher stakes may receive priority.
             </p>
           </div>
 
           <div className="flex gap-4">
-            <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onCancel}
+              className="flex-1"
+            >
               Cancel
             </Button>
-            <Button type="submit" variant="security" disabled={isSubmitting} className="flex-1">
-              {isSubmitting ? (
-                <>
-                  <Shield className="h-4 w-4 mr-2 animate-spin" />
-                  Notarizing...
-                </>
-              ) : (
-                <>
-                  <Shield className="h-4 w-4 mr-2" />
-                  Submit & Notarize
-                </>
-              )}
+            <Button 
+              type="submit" 
+              disabled={isSubmitting || !evidenceHash}
+              className="flex-1"
+            >
+              {isSubmitting ? "Submitting..." : "Submit Ticket"}
             </Button>
           </div>
         </form>

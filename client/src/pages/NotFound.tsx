@@ -1,5 +1,6 @@
-import { useLocation, Link } from "wouter";
+import { useLocation } from "wouter";
 import { useEffect } from "react";
+import { Link } from "wouter";
 
 const NotFound = () => {
   const [location] = useLocation();

@@ -1,31 +1,59 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useWallet } from "@/hooks/useWallet";
+import { useToast } from "@/hooks/use-toast";
+import { useCurrentAccount, useCurrentWallet, useIotaClient, ConnectButton } from "@iota/dapp-kit";
 import Header from "@/components/Header";
+import RoleSelectionModal from "@/components/RoleSelectionModal";
 import Dashboard from "@/components/Dashboard";
 import { Shield, Network, Lock, Zap } from "lucide-react";
+import { createContractService } from "@/lib/contract";
 
 const Index = () => {
-  const { isConnected, address, userRole, isContractVerified } = useWallet();
+  const [userRole, setUserRole] = useState<string>("");
+  const [showRoleSelection, setShowRoleSelection] = useState(false);
+  const { toast } = useToast();
+  const currentAccount = useCurrentAccount();
+  const { currentWallet, connectionStatus } = useCurrentWallet();
+  const client = useIotaClient();
 
-  const handleWalletConnect = () => {
-    // This is now handled by the ConnectButton component
+  // Available roles for demo (in real app, this would be from IOTA Identity or contract)
+  const availableRoles = ["client", "analyst", "certifier"];
+
+  // Show role selection when wallet connects
+  useEffect(() => {
+    if (connectionStatus === 'connected' && currentAccount && !userRole) {
+      toast({
+        title: "Wallet Connected Successfully",
+        description: `Connected to ${currentWallet?.name || 'IOTA Wallet'}`,
+      });
+    }
+  }, [connectionStatus, currentAccount, currentWallet, userRole, toast]);
+
+  const handleRoleSelection = (role: string) => {
+    setUserRole(role);
+    setShowRoleSelection(false);
+    
+    toast({
+      title: "Role Selected",
+      description: `Welcome, ${role}! You can now access the platform.`,
+    });
   };
 
-  if (isConnected && address && userRole) {
+  const handleWalletConnect = () => {
+    // The ConnectButton handles this automatically
+  };
+
+  if (currentAccount && userRole) {
     return (
       <div className="min-h-screen bg-background">
         <Header 
-          walletAddress={address} 
+          walletAddress={currentAccount.address} 
           userRole={userRole} 
           onConnect={handleWalletConnect} 
         />
-        <Dashboard 
-          userRole={userRole} 
-          walletAddress={address}
-          isContractVerified={isContractVerified}
-        />
+        <Dashboard userRole={userRole} walletAddress={currentAccount.address} />
       </div>
     );
   }
@@ -33,6 +61,14 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header onConnect={handleWalletConnect} />
+      
+      {/* Role Selection Modal */}
+      <RoleSelectionModal 
+        isOpen={showRoleSelection}
+        onClose={() => setShowRoleSelection(false)}
+        onSelectRole={handleRoleSelection}
+        availableRoles={availableRoles}
+      />
       
       <div className="container mx-auto px-4 py-16">
         <div className="text-center space-y-8 mb-16">
@@ -49,14 +85,21 @@ const Index = () => {
           </div>
           
           <div className="flex justify-center">
-            <Button 
-              onClick={handleWalletConnect}
-              variant="security"
-              size="lg"
-              className="text-lg px-8 py-6"
-            >
-              Connect IOTA Wallet to Start
-            </Button>
+            {connectionStatus === 'connected' ? (
+              <Button 
+                onClick={() => setShowRoleSelection(true)}
+                variant="default"
+                size="lg"
+                className="text-lg px-8 py-6 bg-gradient-to-r from-primary to-accent text-primary-foreground font-semibold"
+              >
+                Connected - Choose Role
+              </Button>
+            ) : (
+              <ConnectButton 
+                connectText="Connect IOTA Wallet to Start"
+                className="text-lg px-8 py-6"
+              />
+            )}
           </div>
         </div>
 

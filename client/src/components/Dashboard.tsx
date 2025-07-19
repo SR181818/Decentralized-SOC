@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useIotaClient } from "@iota/dapp-kit";
+import { createContractService } from "@/lib/contract";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -16,47 +18,83 @@ import {
 import TicketForm from "./TicketForm";
 import TicketList from "./TicketList";
 import StakingRewards from "./StakingRewards";
-import ContractStatus from "./ContractStatus";
-import TicketsDashboard from "./TicketsDashboard";
 
 interface DashboardProps {
   userRole: string;
   walletAddress: string;
-  isContractVerified: boolean;
 }
 
-const Dashboard = ({ userRole, walletAddress, isContractVerified }: DashboardProps) => {
+const Dashboard = ({ userRole, walletAddress }: DashboardProps) => {
   const [activeTab, setActiveTab] = useState("overview");
   const [showTicketForm, setShowTicketForm] = useState(false);
 
-  const getStatsForRole = (role: string) => {
-    switch (role) {
-      case "client":
-        return {
-          totalTickets: 12,
-          pendingTickets: 3,
-          resolvedTickets: 9,
-          stakingBalance: "150.5 IOTA"
-        };
-      case "analyst":
-        return {
-          assignedTickets: 8,
-          completedTickets: 24,
-          pendingReview: 2,
-          stakingBalance: "320.0 IOTA"
-        };
-      case "certifier":
-        return {
-          escalatedTickets: 5,
-          certifiedTickets: 18,
-          pendingCertification: 1,
-          stakingBalance: "500.0 IOTA"
-        };
-      default:
-        return {
-          stakingBalance: "0.0 IOTA"
-        };
+  const [stats, setStats] = useState({
+    totalTickets: 0,
+    pendingTickets: 0,
+    resolvedTickets: 0,
+    assignedTickets: 0,
+    completedTickets: 0,
+    pendingReview: 0,
+    escalatedTickets: 0,
+    certifiedTickets: 0,
+    pendingCertification: 0,
+    stakingBalance: "0.0 IOTA"
+  });
+
+  useEffect(() => {
+    if (walletAddress) {
+      loadStats();
     }
+  }, [walletAddress, userRole]);
+
+  const loadStats = async () => {
+    try {
+      const client = useIotaClient();
+      const contractService = createContractService(client);
+      
+      const userTickets = await contractService.getTicketsForUser(walletAddress, userRole);
+      const stakeTokens = await contractService.getUserStakeTokens(walletAddress);
+      const cltTokens = await contractService.getUserCLTTokens(walletAddress);
+      
+      const totalStaking = stakeTokens.reduce((sum, token) => sum + token.amount, 0) +
+                          cltTokens.reduce((sum, token) => sum + token.amount, 0);
+
+      switch (userRole) {
+        case "client":
+          setStats({
+            ...stats,
+            totalTickets: userTickets.length,
+            pendingTickets: userTickets.filter(t => [0, 1, 2].includes(t.status)).length,
+            resolvedTickets: userTickets.filter(t => [3, 4].includes(t.status)).length,
+            stakingBalance: `${totalStaking} IOTA`
+          });
+          break;
+        case "analyst":
+          setStats({
+            ...stats,
+            assignedTickets: userTickets.filter(t => t.status === 1).length,
+            completedTickets: userTickets.filter(t => [3, 4].includes(t.status)).length,
+            pendingReview: userTickets.filter(t => t.status === 2).length,
+            stakingBalance: `${totalStaking} IOTA`
+          });
+          break;
+        case "certifier":
+          setStats({
+            ...stats,
+            escalatedTickets: userTickets.filter(t => t.status === 2).length,
+            certifiedTickets: userTickets.filter(t => [3, 4].includes(t.status)).length,
+            pendingCertification: userTickets.filter(t => t.status === 2).length,
+            stakingBalance: `${totalStaking} IOTA`
+          });
+          break;
+      }
+    } catch (error) {
+      console.error("Failed to load stats:", error);
+    }
+  };
+
+  const getStatsForRole = (role: string) => {
+    return stats;
   };
 
   const renderRoleContent = () => {
@@ -66,23 +104,6 @@ const Dashboard = ({ userRole, walletAddress, isContractVerified }: DashboardPro
       case "client":
         return (
           <div className="space-y-6">
-            {/* Contract Status Indicator */}
-            <Card className={`border ${isContractVerified ? 'border-success' : 'border-warning'}`}>
-              <CardContent className="pt-4">
-                <div className="flex items-center gap-2">
-                  <Shield className={`h-4 w-4 ${isContractVerified ? 'text-success' : 'text-warning'}`} />
-                  <span className="text-sm font-medium">
-                    Smart Contract: {isContractVerified ? 'Connected' : 'Disconnected'}
-                  </span>
-                  {!isContractVerified && (
-                    <Badge variant="outline" className="text-warning border-warning">
-                      Check Network
-                    </Badge>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-            
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Card className="security-card">
                 <CardHeader className="pb-3">
@@ -350,7 +371,10 @@ const Dashboard = ({ userRole, walletAddress, isContractVerified }: DashboardPro
       )}
 
       {activeTab === "tickets" && (
-        <TicketsDashboard userRole={userRole} />
+        <TicketList 
+          userRole={userRole}
+          onTicketUpdate={handleTicketUpdate}
+        />
       )}
 
       {activeTab === "staking" && (

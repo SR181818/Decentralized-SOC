@@ -3,18 +3,23 @@ import { QueryClient } from "@tanstack/react-query";
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
+      queryFn: async ({ queryKey }) => {
+        const url = queryKey[0] as string;
+        const res = await fetch(url);
+        
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        
+        const data = await res.json();
+        return data;
+      },
     },
   },
 });
 
-// Default API request function for TanStack Query
-export async function apiRequest(
-  url: string,
-  options: RequestInit = {}
-): Promise<any> {
-  const response = await fetch(url, {
+export async function apiRequest(url: string, options: RequestInit = {}) {
+  const res = await fetch(url, {
     headers: {
       "Content-Type": "application/json",
       ...options.headers,
@@ -22,17 +27,9 @@ export async function apiRequest(
     ...options,
   });
 
-  if (!response.ok) {
-    throw new Error(`API request failed: ${response.status}`);
+  if (!res.ok) {
+    throw new Error(`HTTP error! status: ${res.status}`);
   }
 
-  return response.json();
+  return res.json();
 }
-
-// Set up default fetcher for TanStack Query
-queryClient.setQueryDefaults([], {
-  queryFn: ({ queryKey }) => {
-    const [url] = queryKey as [string];
-    return apiRequest(url);
-  },
-});

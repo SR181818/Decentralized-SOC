@@ -130,8 +130,12 @@
   }
 
   .security-button {
-    @apply text-primary-foreground hover:shadow-[var(--shadow-glow)] transition-all duration-300;
-    background: var(--gradient-primary);
+    @apply bg-gradient-to-r from-primary to-accent text-primary-foreground transition-all duration-300;
+    box-shadow: var(--shadow-glow);
+  }
+  
+  .security-button:hover {
+    box-shadow: var(--shadow-accent);
   }
 
   .status-badge {
@@ -139,31 +143,19 @@
   }
 
   .status-open {
-    background-color: hsl(var(--warning) / 0.2);
-    color: hsl(var(--warning));
-    border: 1px solid hsl(var(--warning) / 0.3);
-    @apply px-3 py-1 rounded-full text-xs font-medium;
+    @apply bg-warning/20 text-warning border border-warning/30;
   }
 
   .status-in-progress {
-    background-color: hsl(var(--primary) / 0.2);
-    color: hsl(var(--primary));
-    border: 1px solid hsl(var(--primary) / 0.3);
-    @apply px-3 py-1 rounded-full text-xs font-medium;
+    @apply bg-primary/20 text-primary border border-primary/30;
   }
 
   .status-completed {
-    background-color: hsl(var(--success) / 0.2);
-    color: hsl(var(--success));
-    border: 1px solid hsl(var(--success) / 0.3);
-    @apply px-3 py-1 rounded-full text-xs font-medium;
+    @apply bg-success/20 text-success border border-success/30;
   }
 
   .status-escalated {
-    background-color: hsl(var(--destructive) / 0.2);
-    color: hsl(var(--destructive));
-    border: 1px solid hsl(var(--destructive) / 0.3);
-    @apply px-3 py-1 rounded-full text-xs font-medium;
+    @apply bg-destructive/20 text-destructive border border-destructive/30;
   }
 
   /* Animated elements */

@@ -1,53 +1,62 @@
 # dSOC - Decentralized Security Operations Center
 
-## Overview
-A blockchain-based security operations center built on IOTA that provides role-based access control, evidence notarization, and decentralized security services. The application features client-analyst-certifier workflow with staking mechanisms and gasless transactions.
+## Project Overview
+A decentralized Security Operations Center (SOC) platform built on IOTA blockchain technology. The application provides role-based access control for security analysts, clients, and certifiers to manage security incidents and tickets through a decentralized workflow.
 
-## Project Architecture
-- **Frontend**: React + TypeScript with Vite
-- **Backend**: Express.js with Drizzle ORM
-- **Database**: PostgreSQL with comprehensive schema (users, tickets, staking, rewards)
-- **Blockchain**: IOTA integration with dApp Kit and Gas Station
-- **UI Framework**: shadcn/ui with Tailwind CSS
-- **Routing**: Wouter (migrated from React Router)
-- **State Management**: TanStack Query with real-time data fetching
+## Architecture
+- **Frontend**: React + TypeScript + Vite + wouter for routing
+- **Backend**: Express.js with TypeScript
+- **Blockchain**: IOTA integration with dApp Kit
+- **UI Framework**: shadcn/ui components with Tailwind CSS
+- **State Management**: TanStack Query for data fetching
+- **Styling**: Dark theme with security-focused design
 
 ## Key Features
-- IOTA Identity-based role assignment (client, analyst, certifier)
-- Document notarization with cryptographic proofs
-- Gas Station for gasless transactions
-- Evidence anchoring on IOTA ledger
-- Staking rewards system with CLT tokens
-
-## Migration Status
-✅ Successfully migrated from Lovable to Replit environment:
-- ✅ Package dependencies installed
-- ✅ Router migration from React Router to Wouter completed
-- ✅ Component compatibility fixes applied
-- ✅ IOTA wallet integration enhanced
-- ✅ Smart contract communication system implemented
-- ✅ PostgreSQL database integration completed
-- ✅ Complete ticket management system with persistent storage
-- ✅ User authentication and role-based access control
-- ✅ Staking and rewards tracking system
+- IOTA wallet integration for authentication
+- Role-based access (client, analyst, certifier)
+- Security ticket management system
+- Staking and rewards mechanism
+- Document notarization on IOTA
+- Real-time dashboard with role-specific views
 
 ## Recent Changes
-- 2025-01-19: Started migration from Lovable to Replit
-- 2025-01-19: Installed missing IOTA and React dependencies
-- 2025-01-19: Updated routing from react-router-dom to wouter
-- 2025-01-19: Created queryClient setup for TanStack Query
-- 2025-01-19: Fixed CSS gradient and color issues
-- 2025-01-19: Implemented proper QueryClient provider hierarchy
-- 2025-01-19: Created useWallet hook for enhanced IOTA integration
-- 2025-01-19: Added contract verification and status monitoring
-- 2025-01-19: Enhanced TicketForm with proper transaction handling
-- 2025-01-19: Completed PostgreSQL database integration with Drizzle ORM
-- 2025-01-19: Created comprehensive schema for tickets, users, staking, and rewards
-- 2025-01-19: Built complete API routes for all CRUD operations
-- 2025-01-19: Enhanced wallet hook with persistent user data
-- 2025-01-19: Created new TicketsDashboard with database-driven ticket management
+- **2024-01-XX**: Migrated project from Lovable to Replit environment
+- Converted routing system from react-router-dom to wouter
+- Added IOTA dApp Kit integration
+- Implemented theme provider for dark mode support
+- Created comprehensive UI component library
 
 ## User Preferences
-- Prioritize security and blockchain integration
-- Maintain dSOC branding and security-focused UI
-- Use TypeScript for type safety
+- Focus on security and blockchain integration
+- Maintain professional, technical approach
+- Dark theme preferred for security application aesthetics
+
+## Project Structure
+```
+├── client/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── ui/           # shadcn/ui components
+│   │   │   ├── Dashboard.tsx  # Main dashboard
+│   │   │   ├── Header.tsx     # Navigation header
+│   │   │   ├── TicketForm.tsx # Ticket creation
+│   │   │   └── TicketList.tsx # Ticket management
+│   │   ├── pages/
+│   │   │   ├── Index.tsx      # Main landing page
+│   │   │   └── NotFound.tsx   # 404 page
+│   │   └── lib/
+│   │       ├── contract.ts    # IOTA smart contract integration
+│   │       └── utils.ts       # Utility functions
+├── server/
+│   ├── index.ts              # Express server entry
+│   ├── routes.ts             # API routes
+│   └── storage.ts            # Data storage interface
+└── shared/
+    └── schema.ts             # Shared type definitions
+```
+
+## Development Notes
+- Using Replit's full-stack template architecture
+- IOTA integration requires testnet configuration
+- Security-focused design with pulse animations for critical elements
+- Comprehensive role-based permission system
