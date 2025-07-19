@@ -11,6 +11,7 @@
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
+    "@google/genai": "^1.10.0",
     "@hookform/resolvers": "^3.10.0",
     "@iota/dapp-kit": "^0.5.0",
     "@iota/iota-sdk": "^1.4.0",

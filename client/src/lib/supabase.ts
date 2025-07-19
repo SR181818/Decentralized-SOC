@@ -1,9 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key-here';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://sncziafbwxgjkvymkolp.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNuY3ppYWZid3hnamt2eW1rb2xwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEyNTMyNTksImV4cCI6MjA2NjgyOTI1OX0.r8xYuUWST0Hx6ifGLuFLgxj0GlvMSY3MGgrf90u5x5o';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+console.log('Supabase config:', {
+  url: supabaseUrl ? 'loaded' : 'missing',
+  key: supabaseAnonKey ? 'loaded' : 'missing'
+});
+
+export const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 // Database types
 export interface DbTicket {
@@ -66,7 +71,10 @@ export class SupabaseService {
   async createTicket(ticket: Omit<DbTicket, 'id' | 'created_at' | 'updated_at'>) {
     const { data, error } = await supabase
       .from('tickets')
-      .insert([ticket])
+      .insert([{
+        ...ticket,
+        ticket_id: ticket.ticket_id || Date.now() // Generate if not provided
+      }])
       .select()
       .single();
 

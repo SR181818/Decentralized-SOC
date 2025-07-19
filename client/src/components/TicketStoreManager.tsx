@@ -31,13 +31,21 @@ export default function TicketStoreManager({ onStoreReady }: TicketStoreManagerP
     if (!account) return;
 
     try {
-      // In a real implementation, you would query the blockchain for existing stores
-      // For now, we'll use localStorage as a demo
-      const existingStoreId = localStorage.getItem(`ticketStore_${account.address}`);
-      if (existingStoreId) {
-        setStoreId(existingStoreId);
-        setHasStore(true);
-        onStoreReady(existingStoreId);
+      // Query blockchain for existing TicketStore objects
+      const objects = await client.getOwnedObjects({
+        owner: account.address,
+        filter: {
+          StructType: `${CONTRACT_PACKAGE_ID}::${MODULE_NAME}::TicketStore`
+        }
+      });
+
+      if (objects.data && objects.data.length > 0) {
+        const existingStoreId = objects.data[0].data?.objectId;
+        if (existingStoreId) {
+          setStoreId(existingStoreId);
+          setHasStore(true);
+          onStoreReady(existingStoreId);
+        }
       }
     } catch (error) {
       console.error('Error checking existing store:', error);

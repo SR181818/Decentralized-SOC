@@ -34,10 +34,15 @@ export default function Index() {
     });
   };
 
-  if (connectionStatus === "connected" && account && userRole) {
+  // Show dashboard when wallet is connected and role is selected
+  if (account && userRole) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-        <Header />
+        <Header 
+          walletAddress={account.address}
+          userRole={userRole}
+          onConnect={() => {}}
+        />
         <Dashboard userRole={userRole} />
       </div>
     );
@@ -45,7 +50,11 @@ export default function Index() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      <Header />
+      <Header 
+        walletAddress={account?.address}
+        userRole={userRole}
+        onConnect={() => {}}
+      />
 
       {/* Hero Section */}
       <div className="relative overflow-hidden">

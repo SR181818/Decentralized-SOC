@@ -9,17 +9,19 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
 const App = () => (
-  <ThemeProvider defaultTheme="dark" storageKey="dsoc-ui-theme">
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <Switch>
-        <Route path="/" component={Index} />
-        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-        <Route component={NotFound} />
-      </Switch>
-    </TooltipProvider>
-  </ThemeProvider>
+  <QueryClientProvider client={queryClient}>
+    <ThemeProvider defaultTheme="dark" storageKey="dsoc-ui-theme">
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <Switch>
+          <Route path="/" component={Index} />
+          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route component={NotFound} />
+        </Switch>
+      </TooltipProvider>
+    </ThemeProvider>
+  </QueryClientProvider>
 );
 
 export default App;

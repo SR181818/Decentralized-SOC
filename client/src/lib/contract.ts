@@ -1,19 +1,15 @@
 import { IotaClient } from "@iota/iota-sdk/client";
 import { Transaction } from "@iota/iota-sdk/transactions";
 import { supabaseService } from "./supabase";
-import { Buffer } from 'buffer';
+// Buffer polyfill for browser compatibility
+const Buffer = {
+  from: (str: string): Uint8Array => new TextEncoder().encode(str)
+};
 
 // Contract configuration
 export const CONTRACT_PACKAGE_ID = "0xbec69147e6d51ff32994389b52eb3ee10a7414d07801bb9d5aaa1ba1c6e6b345";
 export const MODULE_NAME = "dsoc::SOCService";
 export const CLT_MODULE_NAME = "dsoc::CLTReward";
-import { Transaction } from "@iota/iota-sdk/transactions";
-import { supabaseService } from "./supabase";
-
-// Contract configuration
-export const CONTRACT_PACKAGE_ID = "0xbec69147e6d51ff32994389b52eb3ee10a7414d07801bb9d5aaa1ba1c6e6b345"
-export const MODULE_NAME = "dsoc::SOCService"
-export const CLT_MODULE_NAME = "dsoc::CLTReward"
 
 // Contract functions
 export const CONTRACT_FUNCTIONS = {
@@ -103,6 +99,7 @@ export class ContractService {
   }
 
   async createTicket(
+    storeId: string,
     evidenceHash: string,
     title: string,
     description: string,
@@ -118,15 +115,14 @@ export class ContractService {
       arguments: [tx.pure.u64(stakeAmount)]
     });
 
-    // Create ticket with stake
+    // Create ticket with stake - matches the Move contract signature
     tx.moveCall({
       target: `${CONTRACT_PACKAGE_ID}::${MODULE_NAME}::${CONTRACT_FUNCTIONS.CREATE_TICKET}`,
       arguments: [
-        tx.object('ticket_store'),
-        stakeToken,
-        tx.pure.vector.u8(Buffer.from(evidenceHash))
+        tx.object(storeId), // TicketStore object
+        stakeToken,         // StakeToken object
+        tx.pure.vector.u8(Buffer.from(evidenceHash)) // evidence_hash: vector<u8>
       ]
-    });
     });
 
     // Store ticket info in Supabase for enhanced tracking
@@ -151,17 +147,18 @@ export class ContractService {
 
   async assignAnalyst(
     storeId: string,
-    ticketId: number,
-    address: string
+    ticketId: number
   ): Promise<Transaction> {
-    const tx = new Transaction()
+    const tx = new Transaction();
+    
+    // Matches Move contract: assign_analyst(store: &mut TicketStore, ticket_id: u64, ctx: &mut TxContext)
     tx.moveCall({
       target: `${CONTRACT_PACKAGE_ID}::${MODULE_NAME}::${CONTRACT_FUNCTIONS.ASSIGN_ANALYST}`,
       arguments: [
-        tx.object(storeId),
-        tx.pure.u64(ticketId)
-      ],
-    })
+        tx.object(storeId),      // TicketStore object
+        tx.pure.u64(ticketId)    // ticket_id: u64
+      ]
+    });
 
     // Update in Supabase
     try {
@@ -169,7 +166,6 @@ export class ContractService {
       const ticket = tickets.find(t => t.ticket_id === ticketId)
       if (ticket) {
         await supabaseService.updateTicket(ticket.id, {
-          analyst_address: address,
           status: TICKET_STATUS.CLAIMED
         })
       }
@@ -183,32 +179,21 @@ export class ContractService {
   async submitReport(
     storeId: string,
     ticketId: number,
-    reportHash: string,
-    address: string
+    reportHash: string
   ): Promise<Transaction> {
-    const tx = new Transaction()
+    const tx = new Transaction();
+    
+    // Matches Move contract: submit_report(store: &mut TicketStore, ticket_id: u64, report_hash: vector<u8>, ctx: &mut TxContext)
     tx.moveCall({
       target: `${CONTRACT_PACKAGE_ID}::${MODULE_NAME}::${CONTRACT_FUNCTIONS.SUBMIT_REPORT}`,
       arguments: [
-        tx.object(storeId),
-        tx.pure.u64(ticketId),
-        tx.pure.vector('u8', Array.from(new TextEncoder().encode(reportHash)))
-      ],
-    })
+        tx.object(storeId),          // TicketStore object
+        tx.pure.u64(ticketId),       // ticket_id: u64
+        tx.pure.vector.u8(Buffer.from(reportHash)) // report_hash: vector<u8>
+      ]
+    });
 
-    // Update in Supabase
-    try {
-      const tickets = await supabaseService.getTicketsByAnalyst(address)
-      const ticket = tickets.find(t => t.ticket_id === ticketId)
-      if (ticket) {
-        await supabaseService.updateTicket(ticket.id, {
-          report_hash: reportHash,
-          status: TICKET_STATUS.SUBMITTED
-        })
-      }
-    } catch (error) {
-      console.error('Error updating ticket in Supabase:', error)
-    }
+    // Update in Supabase will be handled by frontend after successful transaction
 
     return tx
   }
@@ -216,18 +201,19 @@ export class ContractService {
   async validateTicket(
     storeId: string,
     ticketId: number,
-    approved: boolean,
-    address: string
+    approved: boolean
   ): Promise<Transaction> {
-    const tx = new Transaction()
+    const tx = new Transaction();
+    
+    // Matches Move contract: validate_ticket(store: &mut TicketStore, ticket_id: u64, approved: bool, ctx: &mut TxContext)
     tx.moveCall({
       target: `${CONTRACT_PACKAGE_ID}::${MODULE_NAME}::${CONTRACT_FUNCTIONS.VALIDATE_TICKET}`,
       arguments: [
-        tx.object(storeId),
-        tx.pure.u64(ticketId),
-        tx.pure.bool(approved)
-      ],
-    })
+        tx.object(storeId),        // TicketStore object
+        tx.pure.u64(ticketId),     // ticket_id: u64
+        tx.pure.bool(approved)     // approved: bool
+      ]
+    });
 
     // Update in Supabase
     try {
@@ -364,6 +350,48 @@ export class ContractService {
       ticket_id: event.parsedJson.ticket_id,
       approved: event.parsedJson.approved
     }
+  }
+
+  // Create a new ticket store
+  async createTicketStore(): Promise<Transaction> {
+    const tx = new Transaction();
+    
+    // Call the init function from Move contract to create TicketStore
+    // The Move contract will automatically transfer the store to the caller
+    tx.moveCall({
+      target: `${CONTRACT_PACKAGE_ID}::${MODULE_NAME}::init`,
+      arguments: []
+    });
+
+    return tx;
+  }
+
+  // Get ticket store owned by user
+  async getTicketStoreId(ownerAddress: string): Promise<string | null> {
+    try {
+      // Query for TicketStore objects owned by the user
+      const objects = await this.client.getOwnedObjects({
+        owner: ownerAddress,
+        filter: {
+          StructType: `${CONTRACT_PACKAGE_ID}::${MODULE_NAME}::TicketStore`
+        }
+      });
+
+      if (objects.data && objects.data.length > 0) {
+        return objects.data[0].data?.objectId || null;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error fetching TicketStore:', error);
+      return null;
+    }
+  }
+
+  // Check if user has a ticket store
+  async hasTicketStore(ownerAddress: string): Promise<boolean> {
+    const storeId = await this.getTicketStoreId(ownerAddress);
+    return storeId !== null;
   }
 }
 
