@@ -1,0 +1,23 @@
+2
+RoleSelectionModal.tsx:46 Uncaught TypeError: Cannot read properties of undefined (reading 'map')
+    at RoleSelectionModal (RoleSelectionModal.tsx:46:27)
+chunk-NFC5BX5N.js?v=83b69925:14032 The above error occurred in the <RoleSelectionModal> component:
+
+    at RoleSelectionModal (https://4812e759-e865-48c4-8ce9-933323712324-00-8ebyox7zqm5c.picard.replit.dev/src/components/RoleSelectionModal.tsx:21:31)
+    at div
+    at Index (https://4812e759-e865-48c4-8ce9-933323712324-00-8ebyox7zqm5c.picard.replit.dev/src/pages/Index.tsx:28:19)
+    at Route (https://4812e759-e865-48c4-8ce9-933323712324-00-8ebyox7zqm5c.picard.replit.…/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=83b69925:191:16)
+    at Switch (https://4812e759-e865-48c4-8ce9-933323712324-00-8ebyox7zqm5c.picard.replit.…/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=83b69925:247:17)
+    at Provider (https://4812e759-e865-48c4-8ce9-933323712324-00-8ebyox7zqm5c.picard.replit.…unner/workspace/node_modules/.vite/deps/chunk-2FHPYZSI.js?v=83b69925:58:15)
+    at TooltipProvider (https://4812e759-e865-48c4-8ce9-933323712324-00-8ebyox7zqm5c.picard.replit.…rkspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=83b69925:56:5)
+    at ThemeProvider (https://4812e759-e865-48c4-8ce9-933323712324-00-8ebyox7zqm5c.picard.replit.dev/src/components/ThemeProvider.tsx:25:3)
+    at App
+    at WalletConnectionManager (https://4812e759-e865-48c4-8ce9-933323712324-00-8ebyox7zqm5c.picard.replit.…ner/workspace/node_modules/.vite/deps/@iota_dapp-kit.js?v=83b69925:14075:3)
+    at WalletProvider (https://4812e759-e865-48c4-8ce9-933323712324-00-8ebyox7zqm5c.picard.replit.…ner/workspace/node_modules/.vite/deps/@iota_dapp-kit.js?v=83b69925:14044:3)
+    at IotaClientProvider (https://4812e759-e865-48c4-8ce9-933323712324-00-8ebyox7zqm5c.picard.replit.…er/workspace/node_modules/.vite/deps/@iota_dapp-kit.js?v=83b69925:13498:11)
+    at QueryClientProvider (https://4812e759-e865-48c4-8ce9-933323712324-00-8ebyox7zqm5c.picard.replit.…nner/workspace/node_modules/.vite/deps/chunk-M4RYY5BG.js?v=83b69925:2805:3)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+chunk-NFC5BX5N.js?v=83b69925:19413 Uncaught TypeError: Cannot read properties of undefined (reading 'map')
+    at RoleSelectionModal (RoleSelectionModal.tsx:46:27)

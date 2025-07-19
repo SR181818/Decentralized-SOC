@@ -1,97 +1,127 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Badge } from "./ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrentAccount, useIotaClient, useSignTransaction } from "@iota/dapp-kit";
-import { Coins, TrendingUp, Gift, Lock, Unlock } from "lucide-react";
 import { createContractService } from "@/lib/contract";
+import { supabaseService, DbUser, DbTransaction } from "@/lib/supabase";
+import { 
+  Coins, 
+  TrendingUp, 
+  Award, 
+  ArrowUpCircle, 
+  ArrowDownCircle,
+  History,
+  Wallet,
+  Star,
+  Target
+} from "lucide-react";
 
-interface StakingRewardsProps {
-  userRole: string;
-  walletAddress: string;
-}
-
-const StakingRewards = ({ userRole, walletAddress }: StakingRewardsProps) => {
-  const [stakeAmount, setStakeAmount] = useState("");
+export default function StakingRewards() {
+  const [userStats, setUserStats] = useState<DbUser | null>(null);
+  const [transactions, setTransactions] = useState<DbTransaction[]>([]);
+  const [stakeAmount, setStakeAmount] = useState("100");
+  const [isLoading, setIsLoading] = useState(true);
   const [isStaking, setIsStaking] = useState(false);
-  const [isClaiming, setIsClaiming] = useState(false);
-  const { toast } = useToast();
-  const currentAccount = useCurrentAccount();
+
+  const account = useCurrentAccount();
   const client = useIotaClient();
   const { mutate: signTransaction } = useSignTransaction();
+  const { toast } = useToast();
 
-  // Mock staking data
-  const stakingData = {
-    client: {
-      balance: "1,250.5",
-      staked: "150.0",
-      pendingRewards: "12.5",
-      apr: "8.5%",
-      nextReward: "24 hours"
-    },
-    analyst: {
-      balance: "2,850.0",
-      staked: "320.0",
-      pendingRewards: "28.7",
-      apr: "12.0%",
-      nextReward: "18 hours"
-    },
-    certifier: {
-      balance: "5,100.0",
-      staked: "500.0",
-      pendingRewards: "45.2",
-      apr: "15.0%",
-      nextReward: "6 hours"
+  useEffect(() => {
+    if (account) {
+      loadUserData();
+    }
+  }, [account]);
+
+  const loadUserData = async () => {
+    if (!account) return;
+
+    try {
+      // Load user stats
+      const user = await supabaseService.getUserByAddress(account.address);
+      setUserStats(user);
+
+      // Load transactions
+      const userTransactions = await supabaseService.getTransactionsByUser(account.address);
+      setTransactions(userTransactions);
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const currentData = stakingData[userRole as keyof typeof stakingData];
+  const handleStakeTokens = async () => {
+    if (!account || !stakeAmount) return;
 
-  const handleStake = async () => {
-    if (!stakeAmount || parseFloat(stakeAmount) <= 0) {
-      toast({
-        title: "Invalid Amount",
-        description: "Please enter a valid staking amount",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!currentAccount) {
-      toast({
-        title: "Wallet Not Connected",
-        description: "Please connect your wallet first",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsStaking(true);
     try {
+      setIsStaking(true);
       const contractService = createContractService(client);
-      const amount = Math.floor(parseFloat(stakeAmount) * 1000000000); // Convert to nanIOTA
       
-      // Create stake token transaction
-      const stakeTransaction = await contractService.createStake(amount, currentAccount.address);
-      
-      // For demo purposes, we'll simulate the transaction
-      // In a real implementation, you would sign and execute the transaction
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      toast({
-        title: "Staking Successful",
-        description: `${stakeAmount} IOTA tokens staked successfully`,
-      });
-      
-      setStakeAmount("");
+      // Create stake transaction (this would call a staking function in the contract)
+      const transaction = await contractService.createStakeToken(parseInt(stakeAmount));
+
+      signTransaction(
+        { transaction },
+        {
+          onSuccess: async (result) => {
+            try {
+              // Update user balance
+              const updatedBalance = (userStats?.stake_balance || 0) + parseInt(stakeAmount);
+              await supabaseService.upsertUser({
+                wallet_address: account.address,
+                role: userStats?.role || 'client',
+                clt_balance: userStats?.clt_balance || 0,
+                stake_balance: updatedBalance
+              });
+
+              // Record transaction
+              await supabaseService.createTransaction({
+                ticket_id: 0,
+                from_address: account.address,
+                transaction_hash: result.digest,
+                transaction_type: 'STAKE',
+                amount: parseInt(stakeAmount),
+                status: 'completed'
+              });
+
+              toast({
+                title: "Success!",
+                description: `Staked ${stakeAmount} IOTA tokens successfully`,
+              });
+
+              setStakeAmount("100");
+              loadUserData();
+            } catch (error) {
+              console.error('Database error:', error);
+              toast({
+                title: "Warning",
+                description: "Tokens staked but failed to update database",
+                variant: "destructive",
+              });
+            }
+          },
+          onError: (error) => {
+            console.error('Staking failed:', error);
+            toast({
+              title: "Error",
+              description: "Failed to stake tokens",
+              variant: "destructive",
+            });
+          },
+        }
+      );
     } catch (error) {
-      console.error("Staking error:", error);
+      console.error('Error staking tokens:', error);
       toast({
-        title: "Staking Failed",
-        description: "Failed to stake tokens on blockchain",
+        title: "Error",
+        description: "Failed to create stake transaction",
         variant: "destructive",
       });
     } finally {
@@ -99,232 +129,226 @@ const StakingRewards = ({ userRole, walletAddress }: StakingRewardsProps) => {
     }
   };
 
-  const handleClaimRewards = async () => {
-    if (!currentAccount) {
-      toast({
-        title: "Wallet Not Connected",
-        description: "Please connect your wallet first",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsClaiming(true);
-    try {
-      // In a real implementation, this would query the contract for CLT tokens
-      // and merge them or claim rewards based on ticket participation
-      const contractService = createContractService(client);
-      
-      // Simulate CLT reward claiming
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      toast({
-        title: "CLT Rewards Claimed",
-        description: `${currentData.pendingRewards} CLT tokens claimed successfully`,
-      });
-    } catch (error) {
-      console.error("Claim error:", error);
-      toast({
-        title: "Claim Failed",
-        description: "Failed to claim rewards from blockchain",
-        variant: "destructive",
-      });
-    } finally {
-      setIsClaiming(false);
+  const getTransactionIcon = (type: string) => {
+    switch (type) {
+      case 'STAKE': return <ArrowUpCircle className="h-4 w-4 text-green-400" />;
+      case 'REWARD': return <Award className="h-4 w-4 text-yellow-400" />;
+      case 'CREATE_TICKET': return <ArrowDownCircle className="h-4 w-4 text-blue-400" />;
+      default: return <Coins className="h-4 w-4 text-gray-400" />;
     }
   };
 
+  const getTransactionColor = (type: string) => {
+    switch (type) {
+      case 'STAKE': return 'text-green-400';
+      case 'REWARD': return 'text-yellow-400';
+      case 'CREATE_TICKET': return 'text-blue-400';
+      default: return 'text-gray-400';
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <Card className="bg-slate-800/50 border-purple-500/30 backdrop-blur-sm">
+        <CardContent className="p-8 text-center">
+          <div className="w-8 h-8 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading staking data...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-2xl font-bold text-foreground">Staking & Rewards</h3>
-          <p className="text-muted-foreground">
-            Earn rewards by staking IOTA tokens and participating in the dSOC ecosystem
-          </p>
-        </div>
-        <Badge variant="outline" className="text-success border-success">
-          APR: {currentData.apr}
-        </Badge>
-      </div>
-
+      {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Wallet Balance */}
-        <Card className="security-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Wallet Balance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">{currentData.balance}</div>
-            <p className="text-xs text-muted-foreground">IOTA Tokens</p>
+        <Card className="bg-gradient-to-br from-purple-900/50 to-purple-800/30 border-purple-500/30 backdrop-blur-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-purple-400 text-sm font-medium">CLT Balance</p>
+                <p className="text-3xl font-bold text-white">{userStats?.clt_balance || 0}</p>
+                <p className="text-purple-300 text-xs">Reward Tokens</p>
+              </div>
+              <Award className="h-12 w-12 text-purple-400" />
+            </div>
           </CardContent>
         </Card>
 
-        {/* Staked Amount */}
-        <Card className="security-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Staked Amount</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-primary">{currentData.staked}</div>
-            <p className="text-xs text-muted-foreground">IOTA Tokens</p>
+        <Card className="bg-gradient-to-br from-cyan-900/50 to-cyan-800/30 border-cyan-500/30 backdrop-blur-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-cyan-400 text-sm font-medium">Staked IOTA</p>
+                <p className="text-3xl font-bold text-white">{userStats?.stake_balance || 0}</p>
+                <p className="text-cyan-300 text-xs">Active Stakes</p>
+              </div>
+              <Coins className="h-12 w-12 text-cyan-400" />
+            </div>
           </CardContent>
         </Card>
 
-        {/* Pending Rewards */}
-        <Card className="security-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Pending Rewards</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-accent">{currentData.pendingRewards}</div>
-            <p className="text-xs text-muted-foreground">IOTA Tokens</p>
+        <Card className="bg-gradient-to-br from-green-900/50 to-green-800/30 border-green-500/30 backdrop-blur-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-green-400 text-sm font-medium">Total Earned</p>
+                <p className="text-3xl font-bold text-white">{userStats?.clt_balance || 0}</p>
+                <p className="text-green-300 text-xs">Lifetime Rewards</p>
+              </div>
+              <TrendingUp className="h-12 w-12 text-green-400" />
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Staking Section */}
-        <Card className="security-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Lock className="h-5 w-5" />
-              Stake Tokens
-            </CardTitle>
-            <CardDescription>
-              Stake your IOTA tokens to earn rewards and participate in governance
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="stake-amount">Amount to Stake</Label>
-              <Input
-                id="stake-amount"
-                type="number"
-                value={stakeAmount}
-                onChange={(e) => setStakeAmount(e.target.value)}
-                placeholder="Enter amount"
-                min="0"
-                step="0.1"
-              />
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Current APR:</span>
-              <span className="font-semibold text-success">{currentData.apr}</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Role Multiplier:</span>
-              <Badge variant="outline" className="text-accent border-accent">
-                {userRole === "client" ? "1.0x" : userRole === "analyst" ? "1.5x" : "2.0x"}
-              </Badge>
-            </div>
-            <Button
-              onClick={handleStake}
-              disabled={isStaking || !stakeAmount}
-              variant="security"
-              className="w-full"
-            >
-              {isStaking ? (
-                <>
-                  <Lock className="h-4 w-4 mr-2 animate-spin" />
-                  Staking...
-                </>
-              ) : (
-                <>
-                  <Coins className="h-4 w-4 mr-2" />
-                  Stake Tokens
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Rewards Section */}
-        <Card className="security-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Gift className="h-5 w-5" />
-              Claim Rewards
-            </CardTitle>
-            <CardDescription>
-              Claim your staking rewards and bonuses for quality contributions
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Base Staking Rewards:</span>
-                <span className="font-semibold">{(parseFloat(currentData.pendingRewards) * 0.7).toFixed(1)} IOTA</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Quality Bonus:</span>
-                <span className="font-semibold text-success">{(parseFloat(currentData.pendingRewards) * 0.3).toFixed(1)} IOTA</span>
-              </div>
-              <div className="flex items-center justify-between pt-2 border-t border-border">
-                <span className="text-sm font-medium">Total Rewards:</span>
-                <span className="font-bold text-accent">{currentData.pendingRewards} IOTA</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Next Reward:</span>
-              <span className="font-semibold text-primary">{currentData.nextReward}</span>
-            </div>
-            <Button
-              onClick={handleClaimRewards}
-              disabled={isClaiming || parseFloat(currentData.pendingRewards) === 0}
-              variant="success"
-              className="w-full"
-            >
-              {isClaiming ? (
-                <>
-                  <TrendingUp className="h-4 w-4 mr-2 animate-spin" />
-                  Claiming...
-                </>
-              ) : (
-                <>
-                  <Gift className="h-4 w-4 mr-2" />
-                  Claim Rewards
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Staking Stats */}
-      <Card className="security-card">
+      {/* Staking Interface */}
+      <Card className="bg-slate-800/50 border-yellow-500/30 backdrop-blur-sm">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            Staking Performance
-          </CardTitle>
-          <CardDescription>
-            Your staking history and performance metrics
-          </CardDescription>
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-lg">
+              <Target className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <CardTitle className="text-yellow-400">Stake IOTA Tokens</CardTitle>
+              <CardDescription className="text-gray-400">
+                Stake IOTA tokens to participate in the dSOC ecosystem and earn rewards
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="text-center p-4 bg-muted/20 rounded-lg">
-              <div className="text-2xl font-bold text-foreground">47</div>
-              <div className="text-sm text-muted-foreground">Days Staked</div>
+        <CardContent className="space-y-6">
+          <div className="bg-yellow-900/20 border border-yellow-600/30 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <Star className="h-5 w-5 text-yellow-400 mt-0.5" />
+              <div>
+                <h4 className="text-yellow-400 font-semibold mb-1">Staking Benefits</h4>
+                <ul className="text-sm text-gray-300 space-y-1">
+                  <li>• Submit security incident tickets</li>
+                  <li>• Participate in the analysis marketplace</li>
+                  <li>• Earn CLT rewards for quality contributions</li>
+                  <li>• Higher stakes unlock premium features</li>
+                </ul>
+              </div>
             </div>
-            <div className="text-center p-4 bg-muted/20 rounded-lg">
-              <div className="text-2xl font-bold text-success">156.8</div>
-              <div className="text-sm text-muted-foreground">Total Earned</div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="stake" className="text-gray-300 flex items-center gap-2">
+                  <Wallet className="h-4 w-4 text-yellow-400" />
+                  Stake Amount (IOTA)
+                </Label>
+                <Input
+                  id="stake"
+                  type="number"
+                  value={stakeAmount}
+                  onChange={(e) => setStakeAmount(e.target.value)}
+                  min="1"
+                  className="bg-slate-700/50 border-gray-600 text-white focus:border-yellow-400"
+                  placeholder="Enter amount to stake"
+                />
+              </div>
+
+              <Button
+                onClick={handleStakeTokens}
+                disabled={!stakeAmount || isStaking}
+                className="w-full bg-gradient-to-r from-yellow-600 to-yellow-700 hover:from-yellow-700 hover:to-yellow-800 text-white font-semibold py-3"
+              >
+                {isStaking ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Staking Tokens...
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <ArrowUpCircle className="h-4 w-4" />
+                    Stake {stakeAmount} IOTA
+                  </div>
+                )}
+              </Button>
             </div>
-            <div className="text-center p-4 bg-muted/20 rounded-lg">
-              <div className="text-2xl font-bold text-primary">92%</div>
-              <div className="text-sm text-muted-foreground">Uptime</div>
-            </div>
-            <div className="text-center p-4 bg-muted/20 rounded-lg">
-              <div className="text-2xl font-bold text-accent">A+</div>
-              <div className="text-sm text-muted-foreground">Quality Score</div>
+
+            <div className="bg-slate-700/30 rounded-lg p-4">
+              <h4 className="text-gray-300 font-medium mb-3">Staking Summary</h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Current Balance:</span>
+                  <span className="text-white">{userStats?.stake_balance || 0} IOTA</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">New Stake:</span>
+                  <span className="text-yellow-400">+{stakeAmount || 0} IOTA</span>
+                </div>
+                <hr className="border-gray-600" />
+                <div className="flex justify-between font-medium">
+                  <span className="text-gray-300">Total After:</span>
+                  <span className="text-white">{(userStats?.stake_balance || 0) + parseInt(stakeAmount || "0")} IOTA</span>
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Transaction History */}
+      <Card className="bg-slate-800/50 border-gray-600/30 backdrop-blur-sm">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-gradient-to-r from-gray-500 to-gray-600 rounded-lg">
+                <History className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-gray-300">Transaction History</CardTitle>
+                <CardDescription className="text-gray-400">
+                  Your recent staking and reward transactions
+                </CardDescription>
+              </div>
+            </div>
+            <Badge className="bg-gray-500/20 text-gray-400 border-gray-500/30">
+              {transactions.length} transactions
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {transactions.length > 0 ? (
+            <div className="space-y-3">
+              {transactions.slice(0, 10).map((tx) => (
+                <div key={tx.id} className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    {getTransactionIcon(tx.transaction_type)}
+                    <div>
+                      <p className="text-white text-sm font-medium">
+                        {tx.transaction_type.replace('_', ' ')}
+                      </p>
+                      <p className="text-gray-400 text-xs">
+                        {new Date(tx.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-sm font-medium ${getTransactionColor(tx.transaction_type)}`}>
+                      {tx.transaction_type === 'CREATE_TICKET' ? '-' : '+'}{tx.amount || 0} 
+                      {tx.transaction_type === 'REWARD' ? ' CLT' : ' IOTA'}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {tx.status}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <History className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-300 mb-2">No transactions yet</h3>
+              <p className="text-gray-400">Start staking to see your transaction history here</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
-};
-
-export default StakingRewards;
+}

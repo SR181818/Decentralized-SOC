@@ -1,7 +1,6 @@
-
 import { IotaClient } from "@iota/iota-sdk/client"
 import { Transaction } from "@iota/iota-sdk/transactions"
-import { SupabaseService, DbTicket } from "./supabase"
+import { supabaseService, DbTicket } from "./supabase"
 
 // Contract configuration - Your actual Move contract
 export const CONTRACT_PACKAGE_ID = "0xbec69147e6d51ff32994389b52eb3ee10a7414d07801bb9d5aaa1ba1c6e6b345"
@@ -10,12 +9,11 @@ export const CLT_MODULE_NAME = "CLTReward"
 
 // Contract functions
 export const CONTRACT_FUNCTIONS = {
-  CREATE_STAKE: "create_stake",
+  CREATE_STAKE: "create_stake_token",
   CREATE_TICKET: "create_ticket", 
   ASSIGN_ANALYST: "assign_analyst",
   SUBMIT_REPORT: "submit_report",
-  VALIDATE_TICKET: "validate_ticket",
-  MINT_CLT: "mint_clt"
+  VALIDATE_TICKET: "validate_ticket"
 } as const
 
 // Status constants matching Move contract
@@ -74,7 +72,7 @@ export class ContractService {
 
     // Store in Supabase for tracking
     try {
-      await SupabaseService.createStakeToken({
+      await supabaseService.createStakeToken({
         owner_address: address,
         amount: amount,
         is_used: false
@@ -88,41 +86,52 @@ export class ContractService {
 
   async createTicket(
     storeId: string,
-    stakeTokenId: string,
     evidenceHash: string,
     title: string,
     description: string,
     category: string,
     stakeAmount: number,
-    address: string
-  ): Promise<Transaction> {
-    const tx = new Transaction()
+    clientAddress: string
+  ) {
+    const tx = new Transaction();
+
+    // First create the stake token and get its result
+    const [stakeToken] = tx.moveCall({
+      target: `${CONTRACT_PACKAGE_ID}::${MODULE_NAME}::${CONTRACT_FUNCTIONS.CREATE_STAKE}`,
+      arguments: [
+        tx.pure.u64(stakeAmount),
+      ],
+    });
+
+    // Then create ticket using the stake token
     tx.moveCall({
       target: `${CONTRACT_PACKAGE_ID}::${MODULE_NAME}::${CONTRACT_FUNCTIONS.CREATE_TICKET}`,
       arguments: [
         tx.object(storeId),
-        tx.object(stakeTokenId),
-        tx.pure.vector('u8', Array.from(new TextEncoder().encode(evidenceHash)))
+        stakeToken,
+        tx.pure.vector('u8', Array.from(new TextEncoder().encode(evidenceHash))),
       ],
-    })
+    });
 
-    // Store in Supabase
+    // Store ticket info in Supabase for enhanced tracking
     try {
-      await SupabaseService.createTicket({
-        client_address: address,
-        evidence_hash: evidenceHash,
-        status: TICKET_STATUS.OPEN,
-        stake_amount: stakeAmount,
+      await supabaseService.createTicket({
+        client_address: clientAddress,
         title,
         description,
-        category
-      })
+        category,
+        evidence_hash: evidenceHash,
+        stake_amount: stakeAmount,
+        status: TICKET_STATUS.OPEN
+      });
     } catch (error) {
-      console.error('Error storing ticket in Supabase:', error)
+      console.error('Error storing ticket in Supabase:', error);
     }
 
-    return tx
+    return tx;
   }
+
+  
 
   async assignAnalyst(
     storeId: string,
@@ -140,10 +149,10 @@ export class ContractService {
 
     // Update in Supabase
     try {
-      const tickets = await SupabaseService.getOpenTickets()
+      const tickets = await supabaseService.getOpenTickets()
       const ticket = tickets.find(t => t.ticket_id === ticketId)
       if (ticket) {
-        await SupabaseService.updateTicket(ticket.id, {
+        await supabaseService.updateTicket(ticket.id, {
           analyst_address: address,
           status: TICKET_STATUS.CLAIMED
         })
@@ -173,10 +182,10 @@ export class ContractService {
 
     // Update in Supabase
     try {
-      const tickets = await SupabaseService.getTicketsByAnalyst(address)
+      const tickets = await supabaseService.getTicketsByAnalyst(address)
       const ticket = tickets.find(t => t.ticket_id === ticketId)
       if (ticket) {
-        await SupabaseService.updateTicket(ticket.id, {
+        await supabaseService.updateTicket(ticket.id, {
           report_hash: reportHash,
           status: TICKET_STATUS.SUBMITTED
         })
@@ -206,16 +215,16 @@ export class ContractService {
 
     // Update in Supabase
     try {
-      const tickets = await SupabaseService.getTicketsByClient(address)
+      const tickets = await supabaseService.getTicketsByClient(address)
       const ticket = tickets.find(t => t.ticket_id === ticketId)
       if (ticket) {
-        await SupabaseService.updateTicket(ticket.id, {
+        await supabaseService.updateTicket(ticket.id, {
           status: approved ? TICKET_STATUS.APPROVED : TICKET_STATUS.REJECTED
         })
 
         // If approved, create CLT token record
         if (approved && ticket.analyst_address) {
-          await SupabaseService.createCLTToken({
+          await supabaseService.createCLTToken({
             owner_address: ticket.analyst_address,
             amount: ticket.stake_amount
           })
@@ -249,11 +258,11 @@ export class ContractService {
       // Get from blockchain
       const storeObj = await this.getTicketStore(storeId)
       let blockchainTickets: Ticket[] = []
-      
+
       if (storeObj && storeObj.data?.content && storeObj.data.content.dataType === 'moveObject') {
         const fields = (storeObj.data.content as any).fields
         const tickets = fields.tickets?.fields || []
-        
+
         blockchainTickets = tickets.map((ticket: any) => ({
           id: ticket.id,
           ticket_id: ticket.ticket_id,
@@ -278,11 +287,11 @@ export class ContractService {
     try {
       switch (userRole) {
         case 'client':
-          return await SupabaseService.getTicketsByClient(userAddress)
+          return await supabaseService.getTicketsByClient(userAddress)
         case 'analyst':
-          return await SupabaseService.getTicketsByAnalyst(userAddress)
+          return await supabaseService.getTicketsByAnalyst(userAddress)
         case 'certifier':
-          return await SupabaseService.getOpenTickets()
+          return await supabaseService.getOpenTickets()
         default:
           return []
       }
@@ -294,7 +303,7 @@ export class ContractService {
 
   async getUserStakeTokens(userAddress: string) {
     try {
-      return await SupabaseService.getUserStakeTokens(userAddress)
+      return await supabaseService.getUserStakeTokens(userAddress)
     } catch (error) {
       console.error('Error fetching stake tokens:', error)
       return []
@@ -303,7 +312,7 @@ export class ContractService {
 
   async getUserCLTTokens(userAddress: string) {
     try {
-      return await SupabaseService.getUserCLTTokens(userAddress)
+      return await supabaseService.getUserCLTTokens(userAddress)
     } catch (error) {
       console.error('Error fetching CLT tokens:', error)
       return []

@@ -5,386 +5,246 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { 
-  FileText, 
-  Search, 
   Shield, 
+  TrendingUp, 
+  Search, 
   Coins, 
   AlertTriangle,
   CheckCircle,
   Clock,
   Users,
-  ArrowLeft
+  ArrowLeft,
+  Award,
+  Database,
+  FileText
 } from "lucide-react";
 import TicketForm from "./TicketForm";
 import TicketList from "./TicketList";
 import StakingRewards from "./StakingRewards";
+import TicketStoreManager from "./TicketStoreManager";
 
 interface DashboardProps {
   userRole: string;
-  walletAddress: string;
 }
 
-const Dashboard = ({ userRole, walletAddress }: DashboardProps) => {
+export default function Dashboard({ userRole }: DashboardProps) {
   const [activeTab, setActiveTab] = useState("overview");
-  const [showTicketForm, setShowTicketForm] = useState(false);
-
+  const [ticketStoreId, setTicketStoreId] = useState<string>("");
   const [stats, setStats] = useState({
     totalTickets: 0,
-    pendingTickets: 0,
-    resolvedTickets: 0,
-    assignedTickets: 0,
-    completedTickets: 0,
-    pendingReview: 0,
-    escalatedTickets: 0,
-    certifiedTickets: 0,
-    pendingCertification: 0,
-    stakingBalance: "0.0 IOTA"
+    activeTickets: 0,
+    cltBalance: 0,
+    stakeBalance: 0
   });
 
+  const client = useIotaClient();
+
   useEffect(() => {
-    if (walletAddress) {
+    if (ticketStoreId) {
       loadStats();
     }
-  }, [walletAddress, userRole]);
+  }, [ticketStoreId, userRole]);
 
   const loadStats = async () => {
     try {
-      const client = useIotaClient();
       const contractService = createContractService(client);
-      
-      const userTickets = await contractService.getTicketsForUser(walletAddress, userRole);
-      const stakeTokens = await contractService.getUserStakeTokens(walletAddress);
-      const cltTokens = await contractService.getUserCLTTokens(walletAddress);
-      
-      const totalStaking = stakeTokens.reduce((sum, token) => sum + token.amount, 0) +
-                          cltTokens.reduce((sum, token) => sum + token.amount, 0);
-
-      switch (userRole) {
-        case "client":
-          setStats({
-            ...stats,
-            totalTickets: userTickets.length,
-            pendingTickets: userTickets.filter(t => [0, 1, 2].includes(t.status)).length,
-            resolvedTickets: userTickets.filter(t => [3, 4].includes(t.status)).length,
-            stakingBalance: `${totalStaking} IOTA`
-          });
-          break;
-        case "analyst":
-          setStats({
-            ...stats,
-            assignedTickets: userTickets.filter(t => t.status === 1).length,
-            completedTickets: userTickets.filter(t => [3, 4].includes(t.status)).length,
-            pendingReview: userTickets.filter(t => t.status === 2).length,
-            stakingBalance: `${totalStaking} IOTA`
-          });
-          break;
-        case "certifier":
-          setStats({
-            ...stats,
-            escalatedTickets: userTickets.filter(t => t.status === 2).length,
-            certifiedTickets: userTickets.filter(t => [3, 4].includes(t.status)).length,
-            pendingCertification: userTickets.filter(t => t.status === 2).length,
-            stakingBalance: `${totalStaking} IOTA`
-          });
-          break;
-      }
+      // Load user statistics here
+      // This would involve querying the contract and Supabase
     } catch (error) {
-      console.error("Failed to load stats:", error);
+      console.error('Error loading stats:', error);
     }
   };
 
-  const getStatsForRole = (role: string) => {
-    return stats;
+  const handleStoreReady = (storeId: string) => {
+    setTicketStoreId(storeId);
   };
 
-  const renderRoleContent = () => {
-    const stats = getStatsForRole(userRole);
-    
+  const getRoleInfo = () => {
     switch (userRole) {
-      case "client":
-        return (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="security-card">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Tickets</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-foreground">{(stats as any).totalTickets}</div>
-                </CardContent>
-              </Card>
-              <Card className="security-card">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-warning">{(stats as any).pendingTickets}</div>
-                </CardContent>
-              </Card>
-              <Card className="security-card">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Resolved</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-success">{(stats as any).resolvedTickets}</div>
-                </CardContent>
-              </Card>
-              <Card className="security-card">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Staking Balance</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-accent">{stats.stakingBalance}</div>
-                </CardContent>
-              </Card>
-            </div>
-            <div className="flex gap-4">
-              <Button variant="security" className="flex-1" onClick={() => setActiveTab("tickets")}>
-                <FileText className="h-4 w-4 mr-2" />
-                View My Tickets
-              </Button>
-              <Button variant="outline" className="flex-1" onClick={() => setShowTicketForm(true)}>
-                <FileText className="h-4 w-4 mr-2" />
-                Submit New Ticket
-              </Button>
-              <Button variant="outline" className="flex-1" onClick={() => setActiveTab("staking")}>
-                <Coins className="h-4 w-4 mr-2" />
-                Manage Staking
-              </Button>
-            </div>
-          </div>
-        );
-      case "analyst":
-        return (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="security-card">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Assigned Tickets</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-foreground">{(stats as any).assignedTickets}</div>
-                </CardContent>
-              </Card>
-              <Card className="security-card">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-success">{(stats as any).completedTickets}</div>
-                </CardContent>
-              </Card>
-              <Card className="security-card">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Pending Review</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-warning">{(stats as any).pendingReview}</div>
-                </CardContent>
-              </Card>
-              <Card className="security-card">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Staking Balance</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-accent">{stats.stakingBalance}</div>
-                </CardContent>
-              </Card>
-            </div>
-            <div className="flex gap-4">
-              <Button variant="security" className="flex-1" onClick={() => setActiveTab("tickets")}>
-                <Search className="h-4 w-4 mr-2" />
-                View Assigned Tickets
-              </Button>
-              <Button variant="outline" className="flex-1" onClick={() => setActiveTab("staking")}>
-                <Coins className="h-4 w-4 mr-2" />
-                Manage Staking
-              </Button>
-            </div>
-          </div>
-        );
-      case "certifier":
-        return (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="security-card">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Escalated Tickets</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-foreground">{(stats as any).escalatedTickets}</div>
-                </CardContent>
-              </Card>
-              <Card className="security-card">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Certified</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-success">{(stats as any).certifiedTickets}</div>
-                </CardContent>
-              </Card>
-              <Card className="security-card">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Pending Certification</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-warning">{(stats as any).pendingCertification}</div>
-                </CardContent>
-              </Card>
-              <Card className="security-card">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Staking Balance</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-accent">{stats.stakingBalance}</div>
-                </CardContent>
-              </Card>
-            </div>
-            <div className="flex gap-4">
-              <Button variant="security" className="flex-1" onClick={() => setActiveTab("tickets")}>
-                <Shield className="h-4 w-4 mr-2" />
-                Review Escalated Tickets
-              </Button>
-              <Button variant="outline" className="flex-1" onClick={() => setActiveTab("staking")}>
-                <Coins className="h-4 w-4 mr-2" />
-                Manage Staking
-              </Button>
-            </div>
-          </div>
-        );
+      case 'client':
+        return {
+          title: "Client Dashboard",
+          description: "Submit and manage your cybersecurity incident reports",
+          icon: Shield,
+          color: "purple"
+        };
+      case 'analyst':
+        return {
+          title: "Analyst Dashboard", 
+          description: "Analyze security incidents and earn CLT rewards",
+          icon: Search,
+          color: "cyan"
+        };
+      case 'certifier':
+        return {
+          title: "Certifier Dashboard",
+          description: "Review and certify incident analyses",
+          icon: Award,
+          color: "green"
+        };
       default:
-        return null;
+        return {
+          title: "Dashboard",
+          description: "Manage your dSOC activities",
+          icon: Database,
+          color: "gray"
+        };
     }
   };
 
-  const handleTicketSubmit = (ticketData: any) => {
-    setShowTicketForm(false);
-    setActiveTab("tickets");
-  };
+  const roleInfo = getRoleInfo();
+  const IconComponent = roleInfo.icon;
 
-  const handleTicketUpdate = (ticketData: any) => {
-    // Handle ticket updates from the list
-    console.log("Ticket updated:", ticketData);
-  };
-
-  // Handle ticket form display
-  if (showTicketForm) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" onClick={() => setShowTicketForm(false)}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
-          </Button>
-        </div>
-        <TicketForm 
-          onSubmit={handleTicketSubmit}
-          onCancel={() => setShowTicketForm(false)}
-        />
-      </div>
-    );
-  }
+  const tabs = [
+    { id: "overview", label: "Overview", icon: TrendingUp },
+    { id: "tickets", label: userRole === 'client' ? "My Tickets" : "Available Tickets", icon: FileText },
+    ...(userRole === 'client' ? [{ id: "submit", label: "Submit Ticket", icon: Shield }] : []),
+    { id: "rewards", label: "Staking & Rewards", icon: Coins },
+  ];
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold text-foreground">
-            {userRole.charAt(0).toUpperCase() + userRole.slice(1)} Dashboard
-          </h2>
-          <p className="text-muted-foreground">
-            Welcome to your dSOC security operations center
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <Badge variant="outline" className="text-accent border-accent">
-            {userRole.toUpperCase()}
-          </Badge>
-          <div className="flex gap-2">
-            <Button 
-              variant={activeTab === "overview" ? "default" : "ghost"} 
-              size="sm"
-              onClick={() => setActiveTab("overview")}
-            >
-              Overview
-            </Button>
-            <Button 
-              variant={activeTab === "tickets" ? "default" : "ghost"} 
-              size="sm"
-              onClick={() => setActiveTab("tickets")}
-            >
-              Tickets
-            </Button>
-            <Button 
-              variant={activeTab === "staking" ? "default" : "ghost"} 
-              size="sm"
-              onClick={() => setActiveTab("staking")}
-            >
-              Staking
-            </Button>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 pt-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center space-x-4 mb-6">
+            <div className={`p-3 bg-gradient-to-r from-${roleInfo.color}-500 to-${roleInfo.color}-600 rounded-xl`}>
+              <IconComponent className="h-8 w-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-white">{roleInfo.title}</h1>
+              <p className="text-gray-400">{roleInfo.description}</p>
+            </div>
+            <div className="ml-auto">
+              <Badge className={`bg-${roleInfo.color}-500/20 text-${roleInfo.color}-400 border-${roleInfo.color}-500/30 px-3 py-1`}>
+                {userRole.toUpperCase()}
+              </Badge>
+            </div>
           </div>
+
+          {/* Ticket Store Manager */}
+          <TicketStoreManager onStoreReady={handleStoreReady} />
         </div>
-      </div>
 
-      {activeTab === "overview" && (
-        <>
-          {renderRoleContent()}
-
-          {/* Recent Activity */}
-          <Card className="security-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Recent Activity
-              </CardTitle>
-              <CardDescription>
-                Latest updates and notifications
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/20">
-                  <div className="h-2 w-2 bg-accent rounded-full"></div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">New ticket submitted</p>
-                    <p className="text-xs text-muted-foreground">2 minutes ago</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/20">
-                  <div className="h-2 w-2 bg-success rounded-full"></div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Ticket analysis completed</p>
-                    <p className="text-xs text-muted-foreground">1 hour ago</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/20">
-                  <div className="h-2 w-2 bg-primary rounded-full"></div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Staking reward claimed</p>
-                    <p className="text-xs text-muted-foreground">3 hours ago</p>
-                  </div>
-                </div>
+        {ticketStoreId && (
+          <>
+            {/* Navigation Tabs */}
+            <div className="mb-8">
+              <div className="flex space-x-1 p-1 bg-slate-800/50 rounded-xl backdrop-blur-sm">
+                {tabs.map((tab) => {
+                  const TabIcon = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
+                        activeTab === tab.id
+                          ? `bg-gradient-to-r from-${roleInfo.color}-600 to-${roleInfo.color}-700 text-white shadow-lg`
+                          : "text-gray-400 hover:text-white hover:bg-slate-700/50"
+                      }`}
+                    >
+                      <TabIcon className="h-4 w-4" />
+                      {tab.label}
+                    </button>
+                  );
+                })}
               </div>
-            </CardContent>
-          </Card>
-        </>
-      )}
+            </div>
 
-      {activeTab === "tickets" && (
-        <TicketList 
-          userRole={userRole}
-          onTicketUpdate={handleTicketUpdate}
-        />
-      )}
+            {/* Content */}
+            <div className="pb-20">
+              {activeTab === "overview" && (
+                <div className="space-y-8">
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <Card className="bg-slate-800/50 border-blue-500/30 backdrop-blur-sm">
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-blue-400 text-sm font-medium">Total Tickets</p>
+                            <p className="text-2xl font-bold text-white">{stats.totalTickets}</p>
+                          </div>
+                          <Shield className="h-8 w-8 text-blue-400" />
+                        </div>
+                      </CardContent>
+                    </Card>
 
-      {activeTab === "staking" && (
-        <StakingRewards 
-          userRole={userRole}
-          walletAddress={walletAddress}
-        />
-      )}
+                    <Card className="bg-slate-800/50 border-yellow-500/30 backdrop-blur-sm">
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-yellow-400 text-sm font-medium">Active Tickets</p>
+                            <p className="text-2xl font-bold text-white">{stats.activeTickets}</p>
+                          </div>
+                          <Clock className="h-8 w-8 text-yellow-400" />
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="bg-slate-800/50 border-green-500/30 backdrop-blur-sm">
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-green-400 text-sm font-medium">CLT Balance</p>
+                            <p className="text-2xl font-bold text-white">{stats.cltBalance}</p>
+                          </div>
+                          <Award className="h-8 w-8 text-green-400" />
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="bg-slate-800/50 border-purple-500/30 backdrop-blur-sm">
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-purple-400 text-sm font-medium">Stake Balance</p>
+                            <p className="text-2xl font-bold text-white">{stats.stakeBalance}</p>
+                          </div>
+                          <Coins className="h-8 w-8 text-purple-400" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Recent Activity */}
+                  <Card className="bg-slate-800/50 border-gray-600/30 backdrop-blur-sm">
+                    <CardHeader>
+                      <CardTitle className="text-white">Recent Activity</CardTitle>
+                      <CardDescription className="text-gray-400">
+                        Your latest interactions with the dSOC platform
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3 p-3 bg-slate-700/30 rounded-lg">
+                          <CheckCircle className="h-5 w-5 text-green-400" />
+                          <div className="flex-1">
+                            <p className="text-white text-sm">Ticket store initialized</p>
+                            <p className="text-gray-400 text-xs">Ready to submit and manage tickets</p>
+                          </div>
+                          <span className="text-xs text-gray-500">Just now</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {activeTab === "tickets" && (
+                <TicketList userRole={userRole} />
+              )}
+
+              {activeTab === "submit" && userRole === 'client' && (
+                <TicketForm onTicketSubmitted={() => setActiveTab("tickets")} />
+              )}
+
+              {activeTab === "rewards" && (
+                <StakingRewards />
+              )}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
-};
-
-export default Dashboard;
+}

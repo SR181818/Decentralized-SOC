@@ -1,0 +1,152 @@
+Absolutely — here is the **full agenda for your dSOC (Decentralized SOC-as-a-Service) project**, written as a detailed **AI agent prompt**, with every necessary step to help your agent build a complete, frontend-only hackathon-ready Web3 app using IOTA's Trust Framework and deployed Move contracts.
+
+---
+
+### 🧠 **AI Agent Prompt: Full Agenda for `dSOC` — Decentralized SOC-as-a-Service**
+
+> You are an experienced Web3 full-stack engineer. Your task is to build a **browser-only frontend dApp** called **dSOC**, which stands for **Decentralized SOC-as-a-Service**, using **React (Vite + TypeScript)** and **IOTA Trust Framework components**. The smart contract backend is already deployed on the IOTA L1 testnet using **Move**, and your focus is solely on the frontend logic, interactions, and UI.
+
+---
+
+### 🏁 **Project Summary**
+
+* **Name:** dSOC (Decentralized SOC-as-a-Service)
+* **Network:** IOTA L1 testnet
+* **Smart Contract Address:** `0xbec69147e6d51ff32994389b52eb3ee10a7414d07801bb9d5aaa1ba1c6e6b345`
+* **Languages & Stack:** React (Vite + TS), `@iota/dapp-kit`, `@iota/sdk`, IOTA Identity, Notarization, Gas Station, CLTs
+* **Focus:** Cybersecurity ticketing, role-based access, staking & rewards
+
+---
+
+### 📌 **Modules Used**
+
+* ✅ IOTA Identity → Role verification (Client, Analyst, Certifier)
+* ✅ IOTA Notarization → Ticket hash anchoring + verification
+* ✅ IOTA Gas Station → Gasless transactions for users
+* ✅ IOTA Closed Loop Tokens (CLTs) → Staking, reward claims
+* ✅ Move Contracts → All business logic (ticket handling, staking, rewards)
+
+---
+
+### 📋 **Frontend Build Agenda**
+
+#### **Step 1: Project Setup**
+
+* Initialize Vite + React + TypeScript project
+* Install:
+
+  * `@iota/dapp-kit`
+  * `@iota/sdk`
+  * `@iota/identity-wasm`
+  * `@iota/gas-station-sdk` *(or handle manually if SDK isn't available)*
+* Configure app to run on IOTA L1 testnet
+* Add TailwindCSS for UI styling
+
+---
+
+#### **Step 2: Wallet Connection**
+
+* Use `ConnectButton` from `@iota/dapp-kit`
+* Store connected user’s wallet address and account data
+* Display account info in UI header
+
+---
+
+#### **Step 3: Role Detection (via IOTA Identity or contract call)**
+
+* Check user role (Client, Analyst, Certifier) based on:
+
+  * IOTA Identity DID or
+  * Move smart contract's role mapping for the wallet address
+* Store role in state and route to respective dashboard
+
+---
+
+#### **Step 4: Client View**
+
+* 📝 Submit a cybersecurity incident report:
+
+  * Fill form with title, category, description
+  * Hash attachment file (PDF/image) locally
+  * Anchor hash using IOTA Notarization module
+  * Call `submit_ticket` in Move contract with metadata + hash
+* View ticket submission history
+
+---
+
+#### **Step 5: Analyst View**
+
+* View open tickets assigned to role “Analyst”
+* Add analysis/response notes
+* Approve/reject or escalate to Certifier
+* Interact with Move contract: `analyze_ticket`, `update_ticket_status`
+
+---
+
+#### **Step 6: Certifier View**
+
+* View escalated tickets
+* Add final certification notes
+* Confirm completion or flag for re-analysis
+* Call Move function: `certify_ticket`
+
+---
+
+#### **Step 7: CLT Staking + Rewards**
+
+* Allow users to:
+
+  * Stake IOTA tokens or CLTs for eligibility
+  * View staking balance
+  * Claim rewards (based on ticket participation or approval)
+* Call Move functions: `stake_clt`, `claim_rewards`
+
+---
+
+#### **Step 8: IOTA Gas Station Integration**
+
+* Wrap all transactions (ticket submission, staking, certifying) with gasless logic
+* User signs messages, and gas is handled by sponsor
+* Use `@iota/gas-station-sdk` or fallback relay endpoint
+
+---
+
+#### **Step 9: UI Components**
+
+* `Header.tsx`: App title + wallet connect
+* `Dashboard.tsx`: Router for Client / Analyst / Certifier
+* `TicketForm.tsx`: Form to submit ticket (client)
+* `TicketList.tsx`: Ticket viewer for all roles
+* `StakeRewards.tsx`: Stake CLT and claim rewards
+
+---
+
+#### **Step 10: Final Polish**
+
+* Add loading states, error messages, and confirmations
+* Ensure compatibility with testnet wallets
+* Add IPFS preview of submitted files (optional)
+* Optional: Use `QRCode` for ticket scanning
+
+---
+
+### 🧪 **Testnet Settings**
+
+* Ensure all contract calls are made to:
+
+  * **IOTA L1 testnet**
+  * **Published Move contract address**: `0xbec69147e6d51ff32994389b52eb3ee10a7414d07801bb9d5aaa1ba1c6e6b345`
+* Confirm CLT balance, staking state, and ticket status via Move view functions
+
+---
+
+### 🧠 Notes for AI Agent
+
+* You must work entirely in frontend (no backend/node server)
+* You can simulate DID resolution or rely on on-chain role logic
+* All contract interactions must be Move-compatible and gasless
+* Prioritize clean UX and clear feedback for every blockchain action
+
+---
+
+Let me know if you want this split into smaller chunks for the AI agent to execute step-by-step (e.g. wallet connection first, then roles, then ticket flow, etc.).
