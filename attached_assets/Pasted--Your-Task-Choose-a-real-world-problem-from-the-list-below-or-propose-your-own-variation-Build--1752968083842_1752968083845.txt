@@ -1,0 +1,90 @@
+🧩 Your Task
+Choose a real-world problem from the list below, or propose your own variation. Build a working solution on IOTA’s Layer 1, using:
+Your own Move smart contracts
+
+
+One or more of the following IOTA Trust Framework components:
+
+
+IOTA Identity
+IOTA Notarization
+IOTA Gas Station
+IOTA Closed Loop Tokens (CLTs)
+
+
+You’re also welcome to integrate other tools in the IOTA ecosystem like our wallets, explorer, libraries and more.
+
+🧠 Challenge Domains & Problem Statements
+You can pick from one of these predefined challenges, or create your own variation that aligns with the hackathon theme to earn extra points.
+
+Digital Identity
+Verifiable University Credentials
+How can students prove their academic background across institutions and employers without relying on centralized databases?
+
+
+Digital Access Management for Shared Spaces
+How can we enable secure, decentralized access control to shared spaces like offices, labs, or coworking facilities?
+
+
+Privacy-Preserving KYC for Online Platforms
+How can users prove age, nationality, or other attributes to access digital services, while keeping control over their personal data?
+
+
+Seamless Identity Onboarding for Citizens or Employees
+How can individuals easily receive a secure digital identity and interact with public or organizational services without technical barriers?
+
+Global Trade & Supply Chain
+Trustworthy Trade Document Verification
+How can customs, ports, and logistics partners verify the authenticity of critical trade documents across jurisdictions?
+
+
+Transparent Shipment Traceability
+How can goods be tracked through each stage of a global supply chain while ensuring trust and data integrity between actors?
+
+
+Supplier Compliance Tracking
+How can buyers validate that suppliers meet regulatory or sustainability standards across multiple audits and certifications?
+
+Circular Economy
+Digital Product Passports for Consumer Goods
+How can product information (such as material composition, origin, and repair history) follow an item across its entire lifecycle?
+
+
+Recycling Incentive System for Cities or Retailers
+How can individuals or organizations be rewarded for recycling efforts, while ensuring that the reported events actually happened, and incentivizing sustainable practices through digital rewards?
+
+
+ESG Reporting Transparency
+How can companies prove that their environmental, social, and governance (ESG) data is reliable and tamper-proof?
+
+Tracking & Monitoring
+Decentralized Sensor Event Logging
+How can devices and sensors securely report temperature, humidity, or GPS data in a way that prevents tampering or manipulation?
+
+
+Proof of Attendance and Participation
+How can we design a decentralized system that verifies attendance at events or activities and rewards participants?
+
+
+Lifecycle Record for Industrial Machines
+How can critical machinery log their usage, inspections, or maintenance events to support resale, audits, or compliance?
+
+Authenticity, Patents & Voting 
+Authenticity and Licensing of Creative Works
+How can creators prove the originality of their digital or physical works, and manage licensing, sharing, and royalty distribution in a transparent and verifiable way?
+
+
+Decentralized Voting with Verified Eligibility
+How can we enable secure, transparent, and accessible voting by verifying voter identity, proving eligibility, and recording votes in a tamper-proof and user-friendly way?
+
+
+Decentralized Rental Agreements
+How can rental agreements between tenants and landlords be digitized and executed in a decentralized way, while ensuring trust, identity, and smooth payment handling?
+
+RWA Tokenization
+Compliant Tokenization
+How can ownership of a real-world asset (such as property, vehicles, or equipment) be securely represented, transferred, and verified on-chain using programmable logic?
+
+
+Purpose-Bound Voucher System
+How can we create a system that issues vouchers to eligible individuals and ensures they can only be used for specific, approved purposes, with each redemption securely verified and recorded?

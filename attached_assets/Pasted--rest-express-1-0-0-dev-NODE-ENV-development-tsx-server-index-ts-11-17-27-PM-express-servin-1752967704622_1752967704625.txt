@@ -1,0 +1,27 @@
+> rest-express@1.0.0 dev
+> NODE_ENV=development tsx server/index.ts
+
+11:17:27 PM [express] serving on port 5000
+Browserslist: browsers data (caniuse-lite) is 9 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+11:27:50 PM [vite] hmr update /src/components/StakingRewards.tsx, /src/index.css?v=x0mxd3eAFaB0Z2ehHhsFX
+11:27:51 PM [vite] hmr update /src/components/Dashboard.tsx, /src/index.css?v=x0mxd3eAFaB0Z2ehHhsFX
+11:27:53 PM [vite] Internal server error: Failed to resolve import "../../shared/mockData" from "client/src/components/Dashboard.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /home/runner/workspace/client/src/components/Dashboard.tsx:6:74
+  20 |  import { Badge } from "./ui/badge";
+  21 |  import { useCurrentAccount } from "@iota/dapp-kit";
+  22 |  import { mockTickets, mockAnalytics, mockUsers, mockRecentActivity } from "../../shared/mockData";
+     |                                                                             ^
+  23 |  import {
+  24 |    Shield,
+      at TransformPluginContext._formatError (/home/runner/workspace/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:49257:41)
+      at TransformPluginContext.error (/home/runner/workspace/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:49252:16)
+      at normalizeUrl (/home/runner/workspace/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:64199:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at async <anonymous> (/home/runner/workspace/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:64331:39)
+      at async Promise.all (index 7)
+      at async TransformPluginContext.transform (/home/runner/workspace/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:64258:7)
+      at async PluginContainer.transform (/home/runner/workspace/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:49098:18)
+      at async loadAndTransform (/home/runner/workspace/node_modules/vite/dist/node/chunks/dep-CHZK6zbr.js:51931:27)
