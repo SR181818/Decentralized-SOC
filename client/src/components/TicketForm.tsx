@@ -23,13 +23,59 @@ export default function TicketForm({ onTicketSubmitted }: TicketFormProps) {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
   const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
-  const [stakeAmount, setStakeAmount] = useState("100");
+  const [stakeAmount, setStakeAmount] = useState("1000"); // Default stake amount
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const account = useCurrentAccount();
   const client = useIotaClient();
   const { mutate: signTransaction } = useSignTransaction();
   const { toast } = useToast();
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!account || !evidenceFile) return;
+
+    try {
+      setIsSubmitting(true);
+      const evidenceHash = await hashFile(evidenceFile);
+      const contractService = createContractService(client);
+
+      const tx = await contractService.createTicket(
+        Number(stakeAmount),
+        evidenceHash,
+        title,
+        description,
+        category,
+        account.address
+      );
+
+      await signTransaction(tx);
+
+      toast({
+        title: "Ticket Created",
+        description: "Your security investigation request has been created and staked successfully.",
+      });
+
+      // Reset form
+      setTitle("");
+      setDescription("");
+      setCategory("");
+      setEvidenceFile(null);
+      setStakeAmount("1000");
+      
+      if (onTicketSubmitted) {
+        onTicketSubmitted();
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error Creating Ticket",
+        description: error.message || "Failed to create ticket. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const categories = [
     "Malware Detection",

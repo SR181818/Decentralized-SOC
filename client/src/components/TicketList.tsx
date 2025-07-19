@@ -45,9 +45,133 @@ export default function TicketList({ userRole }: TicketListProps) {
   const { mutate: signTransaction } = useSignTransaction();
   const { toast } = useToast();
 
+  const loadTickets = async () => {
+    if (!account) return;
+    
+    try {
+      setIsLoading(true);
+      const contractService = createContractService(client);
+      const userTickets = await supabaseService.getTicketsByUser(account.address, userRole);
+      setTickets(userTickets);
+      setFilteredTickets(userTickets);
+    } catch (error: any) {
+      toast({
+        title: "Error Loading Tickets",
+        description: error.message || "Failed to load tickets",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleClaimTicket = async (ticketId: number) => {
+    if (!account) return;
+
+    try {
+      setIsSubmitting(true);
+      const contractService = createContractService(client);
+      const tx = await contractService.assignAnalyst(ticketId);
+      await signTransaction(tx);
+
+      toast({
+        title: "Ticket Claimed",
+        description: "You have successfully claimed this investigation.",
+      });
+
+      loadTickets();
+    } catch (error: any) {
+      toast({
+        title: "Error Claiming Ticket",
+        description: error.message || "Failed to claim ticket",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSubmitReport = async (ticketId: number, reportText: string) => {
+    if (!account || !reportText) return;
+
+    try {
+      setIsSubmitting(true);
+      const reportHash = await crypto.subtle.digest(
+        "SHA-256",
+        new TextEncoder().encode(reportText)
+      ).then(hash => 
+        Array.from(new Uint8Array(hash))
+          .map(b => b.toString(16).padStart(2, "0"))
+          .join("")
+      );
+
+      const contractService = createContractService(client);
+      const tx = await contractService.submitReport(ticketId, reportHash);
+      await signTransaction(tx);
+
+      toast({
+        title: "Report Submitted",
+        description: "Your investigation report has been submitted for review.",
+      });
+
+      setSelectedTicket(null);
+      setReportText("");
+      loadTickets();
+    } catch (error: any) {
+      toast({
+        title: "Error Submitting Report",
+        description: error.message || "Failed to submit report",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleValidateReport = async (ticketId: number, approved: boolean) => {
+    if (!account) return;
+
+    try {
+      setIsSubmitting(true);
+      const contractService = createContractService(client);
+      const tx = await contractService.validateTicket(ticketId, approved);
+      await signTransaction(tx);
+
+      toast({
+        title: "Report Validated",
+        description: approved 
+          ? "The investigation report has been approved and rewards distributed."
+          : "The investigation report has been rejected and stakes returned.",
+      });
+
+      loadTickets();
+    } catch (error: any) {
+      toast({
+        title: "Error Validating Report",
+        description: error.message || "Failed to validate report",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   useEffect(() => {
     loadTickets();
   }, [account, userRole]);
+
+  // Filter tickets based on search term
+  useEffect(() => {
+    if (!searchTerm) {
+      setFilteredTickets(tickets);
+    } else {
+      setFilteredTickets(tickets.filter(ticket => 
+        ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ticket.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ticket.category.toLowerCase().includes(searchTerm.toLowerCase())
+      ));
+    }
+  }, [searchTerm, tickets]);
 
   useEffect(() => {
     filterTickets();

@@ -1,0 +1,168 @@
+import { IotaClient } from "@iota/iota-sdk/client";
+import { Transaction } from "@iota/iota-sdk/transactions";
+import { supabaseService } from "./supabase";
+import { Buffer } from 'buffer';
+
+// Contract configuration
+export const CONTRACT_PACKAGE_ID = "0xbec69147e6d51ff32994389b52eb3ee10a7414d07801bb9d5aaa1ba1c6e6b345";
+export const MODULE_NAME = "dsoc::SOCService";
+export const CLT_MODULE_NAME = "dsoc::CLTReward";
+
+// Contract functions
+export const CONTRACT_FUNCTIONS = {
+  CREATE_STAKE: "create_stake",
+  CREATE_TICKET: "create_ticket", 
+  ASSIGN_ANALYST: "assign_analyst",
+  SUBMIT_REPORT: "submit_report",
+  VALIDATE_TICKET: "validate_ticket",
+  MERGE_CLT: "merge",
+  SPLIT_CLT: "split",
+  GET_CLT_AMOUNT: "get_amount",
+  GET_CLT_OWNER: "get_owner"
+} as const;
+
+// Status constants matching Move contract
+export const TICKET_STATUS = {
+  OPEN: 0,
+  CLAIMED: 1,
+  SUBMITTED: 2,
+  APPROVED: 3,
+  REJECTED: 4
+} as const;
+
+export const TICKET_STATUS_LABELS = {
+  [TICKET_STATUS.OPEN]: "Open",
+  [TICKET_STATUS.CLAIMED]: "Claimed",
+  [TICKET_STATUS.SUBMITTED]: "Submitted", 
+  [TICKET_STATUS.APPROVED]: "Approved",
+  [TICKET_STATUS.REJECTED]: "Rejected"
+};
+
+export class ContractService {
+  constructor(private client: IotaClient) {}
+
+  private async submitTransaction(tx: Transaction): Promise<string> {
+    return await this.client.submitTransaction(tx);
+  }
+
+  // Create stake token
+  async createStake(amount: number, address: string): Promise<Transaction> {
+    const tx = new Transaction();
+    
+    tx.moveCall({
+      target: `${CONTRACT_PACKAGE_ID}::${MODULE_NAME}::${CONTRACT_FUNCTIONS.CREATE_STAKE}`,
+      arguments: [tx.pure.u64(amount)]
+    });
+
+    return tx;
+  }
+
+  // Create ticket with stake
+  async createTicket(
+    evidenceHash: string,
+    title: string,
+    description: string,
+    category: string,
+    stakeAmount: number,
+    clientAddress: string
+  ): Promise<Transaction> {
+    const tx = new Transaction();
+    
+    // Create stake and ticket in one transaction
+    const [stakeToken] = tx.moveCall({
+      target: `${CONTRACT_PACKAGE_ID}::${MODULE_NAME}::${CONTRACT_FUNCTIONS.CREATE_STAKE}`,
+      arguments: [tx.pure.u64(stakeAmount)]
+    });
+
+    tx.moveCall({
+      target: `${CONTRACT_PACKAGE_ID}::${MODULE_NAME}::${CONTRACT_FUNCTIONS.CREATE_TICKET}`,
+      arguments: [
+        tx.object('ticket_store'),
+        stakeToken,
+        tx.pure.vector.u8(Buffer.from(evidenceHash))
+      ]
+    });
+
+    return tx;
+  }
+
+  // Assign analyst to ticket
+  async assignAnalyst(ticketId: number): Promise<Transaction> {
+    const tx = new Transaction();
+    
+    tx.moveCall({
+      target: `${CONTRACT_PACKAGE_ID}::${MODULE_NAME}::${CONTRACT_FUNCTIONS.ASSIGN_ANALYST}`,
+      arguments: [
+        tx.object('ticket_store'),
+        tx.pure.u64(ticketId)
+      ]
+    });
+
+    return tx;
+  }
+
+  // Submit report for review
+  async submitReport(ticketId: number, reportHash: string): Promise<Transaction> {
+    const tx = new Transaction();
+    
+    tx.moveCall({
+      target: `${CONTRACT_PACKAGE_ID}::${MODULE_NAME}::${CONTRACT_FUNCTIONS.SUBMIT_REPORT}`,
+      arguments: [
+        tx.object('ticket_store'),
+        tx.pure.u64(ticketId),
+        tx.pure.vector.u8(Buffer.from(reportHash))
+      ]
+    });
+
+    return tx;
+  }
+
+  // Validate submitted report
+  async validateTicket(ticketId: number, approved: boolean): Promise<Transaction> {
+    const tx = new Transaction();
+    
+    tx.moveCall({
+      target: `${CONTRACT_PACKAGE_ID}::${MODULE_NAME}::${CONTRACT_FUNCTIONS.VALIDATE_TICKET}`,
+      arguments: [
+        tx.object('ticket_store'),
+        tx.pure.u64(ticketId),
+        tx.pure.bool(approved)
+      ]
+    });
+
+    return tx;
+  }
+
+  // CLT Token operations
+  async mergeCLTTokens(token1: string, token2: string): Promise<Transaction> {
+    const tx = new Transaction();
+    
+    tx.moveCall({
+      target: `${CONTRACT_PACKAGE_ID}::${CLT_MODULE_NAME}::${CONTRACT_FUNCTIONS.MERGE_CLT}`,
+      arguments: [
+        tx.object(token1),
+        tx.object(token2)
+      ]
+    });
+
+    return tx;
+  }
+
+  async splitCLTToken(token: string, splitAmount: number): Promise<Transaction> {
+    const tx = new Transaction();
+    
+    tx.moveCall({
+      target: `${CONTRACT_PACKAGE_ID}::${CLT_MODULE_NAME}::${CONTRACT_FUNCTIONS.SPLIT_CLT}`,
+      arguments: [
+        tx.object(token),
+        tx.pure.u64(splitAmount)
+      ]
+    });
+
+    return tx;
+  }
+}
+
+export const createContractService = (client: IotaClient) => {
+  return new ContractService(client);
+};

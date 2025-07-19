@@ -1,19 +1,31 @@
-import { IotaClient } from "@iota/iota-sdk/client"
-import { Transaction } from "@iota/iota-sdk/transactions"
-import { supabaseService, DbTicket } from "./supabase"
+import { IotaClient } from "@iota/iota-sdk/client";
+import { Transaction } from "@iota/iota-sdk/transactions";
+import { supabaseService } from "./supabase";
+import { Buffer } from 'buffer';
 
-// Contract configuration - Your actual Move contract
+// Contract configuration
+export const CONTRACT_PACKAGE_ID = "0xbec69147e6d51ff32994389b52eb3ee10a7414d07801bb9d5aaa1ba1c6e6b345";
+export const MODULE_NAME = "dsoc::SOCService";
+export const CLT_MODULE_NAME = "dsoc::CLTReward";
+import { Transaction } from "@iota/iota-sdk/transactions";
+import { supabaseService } from "./supabase";
+
+// Contract configuration
 export const CONTRACT_PACKAGE_ID = "0xbec69147e6d51ff32994389b52eb3ee10a7414d07801bb9d5aaa1ba1c6e6b345"
-export const MODULE_NAME = "SOCService"
-export const CLT_MODULE_NAME = "CLTReward"
+export const MODULE_NAME = "dsoc::SOCService"
+export const CLT_MODULE_NAME = "dsoc::CLTReward"
 
 // Contract functions
 export const CONTRACT_FUNCTIONS = {
-  CREATE_STAKE: "create_stake_token",
+  CREATE_STAKE: "create_stake",
   CREATE_TICKET: "create_ticket", 
   ASSIGN_ANALYST: "assign_analyst",
   SUBMIT_REPORT: "submit_report",
-  VALIDATE_TICKET: "validate_ticket"
+  VALIDATE_TICKET: "validate_ticket",
+  MERGE_CLT: "merge",
+  SPLIT_CLT: "split",
+  GET_CLT_AMOUNT: "get_amount",
+  GET_CLT_OWNER: "get_owner"
 } as const
 
 // Status constants matching Move contract
@@ -63,12 +75,18 @@ export interface CLTToken {
 export class ContractService {
   constructor(private client: IotaClient) {}
 
+  private async submitTransaction(tx: Transaction): Promise<string> {
+    return await this.client.submitTransaction(tx);
+  }
+
   async createStake(amount: number, address: string): Promise<Transaction> {
-    const tx = new Transaction()
+    const tx = new Transaction();
+    
+    // Create stake token
     tx.moveCall({
       target: `${CONTRACT_PACKAGE_ID}::${MODULE_NAME}::${CONTRACT_FUNCTIONS.CREATE_STAKE}`,
-      arguments: [tx.pure.u64(amount)],
-    })
+      arguments: [tx.pure.u64(amount)]
+    });
 
     // Store in Supabase for tracking
     try {
@@ -76,16 +94,15 @@ export class ContractService {
         owner_address: address,
         amount: amount,
         is_used: false
-      })
+      });
     } catch (error) {
-      console.error('Error storing stake token in Supabase:', error)
+      console.error('Error storing stake token in Supabase:', error);
     }
 
-    return tx
+    return tx;
   }
 
   async createTicket(
-    storeId: string,
     evidenceHash: string,
     title: string,
     description: string,
@@ -95,22 +112,21 @@ export class ContractService {
   ) {
     const tx = new Transaction();
 
-    // First create the stake token and get its result
+    // First create the stake token
     const [stakeToken] = tx.moveCall({
       target: `${CONTRACT_PACKAGE_ID}::${MODULE_NAME}::${CONTRACT_FUNCTIONS.CREATE_STAKE}`,
-      arguments: [
-        tx.pure.u64(stakeAmount),
-      ],
+      arguments: [tx.pure.u64(stakeAmount)]
     });
 
-    // Then create ticket using the stake token
+    // Create ticket with stake
     tx.moveCall({
       target: `${CONTRACT_PACKAGE_ID}::${MODULE_NAME}::${CONTRACT_FUNCTIONS.CREATE_TICKET}`,
       arguments: [
-        tx.object(storeId),
+        tx.object('ticket_store'),
         stakeToken,
-        tx.pure.vector('u8', Array.from(new TextEncoder().encode(evidenceHash))),
-      ],
+        tx.pure.vector.u8(Buffer.from(evidenceHash))
+      ]
+    });
     });
 
     // Store ticket info in Supabase for enhanced tracking

@@ -46,6 +46,21 @@ export interface DbTransaction {
 }
 
 // Supabase service functions
+export interface DbStakeToken {
+  id: string;
+  owner_address: string;
+  amount: number;
+  is_used: boolean;
+  created_at: string;
+}
+
+export interface DbCLTToken {
+  id: string;
+  owner_address: string;
+  amount: number;
+  created_at: string;
+}
+
 export class SupabaseService {
   // Ticket operations
   async createTicket(ticket: Omit<DbTicket, 'id' | 'created_at' | 'updated_at'>) {
@@ -59,16 +74,34 @@ export class SupabaseService {
     return data;
   }
 
-  async getTicketsByUser(userAddress: string, role: string) {
-    let query = supabase.from('tickets').select('*');
+  async getTicketsByClient(userAddress: string) {
+    const { data, error } = await supabase
+      .from('tickets')
+      .select('*')
+      .eq('client_address', userAddress)
+      .order('created_at', { ascending: false });
 
-    if (role === 'client') {
-      query = query.eq('client_address', userAddress);
-    } else if (role === 'analyst') {
-      query = query.or(`analyst_address.eq.${userAddress},status.eq.0`);
-    }
+    if (error) throw error;
+    return data || [];
+  }
 
-    const { data, error } = await query.order('created_at', { ascending: false });
+  async getTicketsByAnalyst(userAddress: string) {
+    const { data, error } = await supabase
+      .from('tickets')
+      .select('*')
+      .or(`analyst_address.eq.${userAddress},status.eq.0`)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  }
+
+  async getOpenTickets() {
+    const { data, error } = await supabase
+      .from('tickets')
+      .select('*')
+      .eq('status', 0)
+      .order('created_at', { ascending: false });
 
     if (error) throw error;
     return data || [];
@@ -79,23 +112,57 @@ export class SupabaseService {
       .from('tickets')
       .update(updates)
       .eq('ticket_id', ticketId)
-      .single()
+      .single();
 
-    if (error) throw error
-    return data
+    if (error) throw error;
+    return data;
+  }
+
+  // Stake Token operations
+  async createStakeToken(stakeToken: Omit<DbStakeToken, 'id' | 'created_at'>) {
+    const { data, error } = await supabase
+      .from('stake_tokens')
+      .insert([stakeToken])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  async getUserStakeTokens(userAddress: string) {
+    const { data, error } = await supabase
+      .from('stake_tokens')
+      .select('*')
+      .eq('owner_address', userAddress)
+      .eq('is_used', false);
+
+    if (error) throw error;
+    return data || [];
+  }
+
+  // CLT Token operations
+  async createCLTToken(cltToken: Omit<DbCLTToken, 'id' | 'created_at'>) {
+    const { data, error } = await supabase
+      .from('clt_tokens')
+      .insert([cltToken])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
   }
 
   async getUserCLTTokens(userAddress: string) {
     const { data, error } = await supabase
       .from('clt_tokens')
       .select('*')
-      .eq('owner', userAddress)
+      .eq('owner_address', userAddress);
 
-    if (error) throw error
-    return data || []
+    if (error) throw error;
+    return data || [];
   }
 }
 
-// Export the class and singleton instance
-export { SupabaseService };
+// Export the singleton instance
 export const supabaseService = new SupabaseService();
