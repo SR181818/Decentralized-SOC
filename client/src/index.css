@@ -1,0 +1,207 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* dSOC Cybersecurity Platform Design System */
+
+@layer base {
+  :root {
+    /* Main theme - Deep security blue with cyan accents */
+    --background: 210 24% 16%;
+    --foreground: 210 40% 98%;
+
+    --card: 210 24% 18%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 210 24% 16%;
+    --popover-foreground: 210 40% 98%;
+
+    /* Primary - Security blue */
+    --primary: 200 100% 45%;
+    --primary-foreground: 210 40% 98%;
+    --primary-glow: 200 100% 65%;
+
+    /* Secondary - Darker blue */
+    --secondary: 210 24% 22%;
+    --secondary-foreground: 210 40% 98%;
+
+    /* Muted - Subtle grays */
+    --muted: 210 24% 14%;
+    --muted-foreground: 210 20% 65%;
+
+    /* Accent - Cyan for highlights */
+    --accent: 180 100% 50%;
+    --accent-foreground: 210 24% 16%;
+
+    /* Status colors */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --success: 142 76% 36%;
+    --success-foreground: 210 40% 98%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 210 24% 16%;
+
+    /* Form elements */
+    --border: 210 24% 24%;
+    --input: 210 24% 20%;
+    --ring: 200 100% 45%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-security: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+    --gradient-card: linear-gradient(135deg, hsl(var(--card)), hsl(var(--secondary)));
+
+    /* Shadows */
+    --shadow-glow: 0 0 30px hsl(var(--primary) / 0.3);
+    --shadow-card: 0 4px 20px hsl(var(--background) / 0.5);
+    --shadow-accent: 0 0 20px hsl(var(--accent) / 0.4);
+
+    /* Animation */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    --radius: 0.75rem;
+  }
+
+  /* Light mode (for accessibility) */
+  .light {
+    --background: 210 40% 98%;
+    --foreground: 210 24% 16%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 210 24% 16%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 24% 16%;
+
+    --primary: 200 100% 35%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 210 24% 16%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 210 20% 45%;
+
+    --accent: 180 100% 40%;
+    --accent-foreground: 210 40% 98%;
+
+    --border: 210 31% 91%;
+    --input: 210 31% 91%;
+    --ring: 200 100% 35%;
+
+    --shadow-glow: 0 0 30px hsl(var(--primary) / 0.2);
+    --shadow-card: 0 4px 20px hsl(var(--foreground) / 0.1);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-muted;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-primary/50 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-primary;
+  }
+}
+
+@layer components {
+  /* Security-themed components */
+  .security-card {
+    @apply bg-gradient-to-br from-card to-secondary border border-border/50 backdrop-blur-sm;
+    box-shadow: var(--shadow-card);
+  }
+
+  .security-button {
+    @apply text-primary-foreground hover:shadow-[var(--shadow-glow)] transition-all duration-300;
+    background: var(--gradient-primary);
+  }
+
+  .status-badge {
+    @apply px-3 py-1 rounded-full text-xs font-medium;
+  }
+
+  .status-open {
+    background-color: hsl(var(--warning) / 0.2);
+    color: hsl(var(--warning));
+    border: 1px solid hsl(var(--warning) / 0.3);
+    @apply px-3 py-1 rounded-full text-xs font-medium;
+  }
+
+  .status-in-progress {
+    background-color: hsl(var(--primary) / 0.2);
+    color: hsl(var(--primary));
+    border: 1px solid hsl(var(--primary) / 0.3);
+    @apply px-3 py-1 rounded-full text-xs font-medium;
+  }
+
+  .status-completed {
+    background-color: hsl(var(--success) / 0.2);
+    color: hsl(var(--success));
+    border: 1px solid hsl(var(--success) / 0.3);
+    @apply px-3 py-1 rounded-full text-xs font-medium;
+  }
+
+  .status-escalated {
+    background-color: hsl(var(--destructive) / 0.2);
+    color: hsl(var(--destructive));
+    border: 1px solid hsl(var(--destructive) / 0.3);
+    @apply px-3 py-1 rounded-full text-xs font-medium;
+  }
+
+  /* Animated elements */
+  .pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+    }
+    50% {
+      box-shadow: 0 0 30px hsl(var(--primary) / 0.6);
+    }
+  }
+
+  .slide-in {
+    animation: slide-in 0.3s ease-out;
+  }
+
+  @keyframes slide-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
